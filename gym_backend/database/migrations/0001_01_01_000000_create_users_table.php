@@ -19,11 +19,12 @@ return new class extends Migration
             $table->string('password')->nullable();
             $table->string('google_id')->nullable();
             $table->string('apple_id')->nullable();
+            $table->string('phone_number')->nullable()->unique();
             $table->integer('age')->nullable();
             $table->decimal('weight', 5, 2)->nullable();
             $table->decimal('height', 5, 2)->nullable();
             $table->enum('weight_unit', ['kg', 'lbs'])->default('kg');
-            $table->string('goal');
+            $table->string('goal')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
