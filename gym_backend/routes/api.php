@@ -8,6 +8,7 @@ Route::prefix('api_v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('/google', [AuthController::class, 'google']);
         Route::post('/signUp', [AuthController::class, 'signUp']);
+        Route::post('/apple', [AuthController::class, 'apple']);
         Route::post('/login', [AuthController::class, 'loginWithPhone']);
     });
 
@@ -15,5 +16,3 @@ Route::prefix('api_v1')->group(function () {
         Route::put('/profile', [ProfileController::class, 'update']);
     });
 });
-
-

@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/auth/models/login_result.dart';
 import '../constant/const.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthService {
   final Dio _dio = Dio(BaseOptions(
@@ -91,7 +91,51 @@ class AuthService {
     }
   }
 
-  Future<void> loginWithApple() async {}
+  Future<String?> signUpWithAppleAccount() async {
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final identityToken = credential.identityToken;
+      if (identityToken == null) {
+        return 'Could not get an Apple identity token. Please try again.';
+      }
+      final nameParts = [credential.givenName, credential.familyName]
+          .whereType<String>()
+          .where((s) => s.isNotEmpty);
+      final String? fullName = nameParts.isEmpty ? null : nameParts.join(' ');
+      final Response response = await _dio.post(
+        '/auth/apple',
+        data: {
+          'identity_token': identityToken,
+          if (fullName != null) 'name': fullName,
+        },
+      );
+      final String token = response.data['token'];
+      final Map<String, dynamic> user =
+          Map<String, dynamic>.from(response.data['user']);
+
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      await prefs.setString('user_name', user['name']?.toString() ?? '');
+      return null;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return null;
+      return 'Apple sign-in failed. Please try again.';
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        return data['message'].toString();
+      }
+      return 'Could not connect to the server. Please try again.';
+    } catch (e) {
+      return 'Something went wrong. Please try again.';
+    }
+  }
 
   Future<String?> signUpWithGoogleAccount() async {
     try {

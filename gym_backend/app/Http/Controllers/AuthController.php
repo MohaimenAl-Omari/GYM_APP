@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Google\Client;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Firebase\JWT\JWT;
+use Firebase\JWT\JWK;
 
 class AuthController extends Controller
 {
@@ -116,11 +119,25 @@ class AuthController extends Controller
         $request->validate([
             'id_token' => 'required'
         ]);
-        $client = new Client([
-            'client_id' => env('GOOGLE_CLIENT_ID')
+        $client = new Client();
+
+        try {
+            $payload = $client->verifyIdToken($request->id_token);
+        } catch (\Throwable $e) {
+            Log::error('Google id_token verification threw', ['error' => $e->getMessage()]);
+            $payload = false;
+        }
+
+        $allowedAudiences = array_filter([
+            env('GOOGLE_CLIENT_ID'),
+            env('GOOGLE_IOS_CLIENT_ID'),
         ]);
-        $payload = $client->verifyIdToken($request->id_token);
-        if (!$payload) {
+
+        if (!$payload || !in_array($payload['aud'] ?? null, $allowedAudiences, true)) {
+            Log::warning('Google id_token rejected', [
+                'allowed_audiences' => $allowedAudiences,
+                'token_aud' => $payload['aud'] ?? null,
+            ]);
             return response()->json([
                 'message' => 'Invaild Token'
             ], 400);
@@ -139,6 +156,55 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token
+        ]);
+    }
+
+    public function apple(Request $request)
+    {
+        $request->validate([
+            'identity_token' => 'required',
+        ]);
+        try {
+            $keys = Http::get('https://appleid.apple.com/auth/keys')->json();
+            $claims = (array) JWT::decode($request->identity_token, JWK::parseKeySet($keys));
+        } catch (\Throwable $e) {
+            Log::error('Apple identity_token verification threw', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Invaild Token',
+            ], 400);
+        }
+        $expectedAudience = env('APPLE_BUNDLE_ID');
+        if (($claims['iss'] ?? null) !== 'https://appleid.apple.com'
+            || ($claims['aud'] ?? null) !== $expectedAudience
+        ) {
+            Log::warning('Apple identity_token rejected', [
+                'expected_audience' => $expectedAudience,
+                'token_aud' => $claims['aud'] ?? null,
+                'token_iss' => $claims['iss'] ?? null,
+            ]);
+            return response()->json([
+                'message' => 'Invaild Token',
+            ], 400);
+        }
+        $user = User::where('apple_id', $claims['sub'])->first();
+        if (!$user && isset($claims['email'])) {
+            $user = User::where('email', $claims['email'])->first();
+        }
+        if (!$user) {
+            $user = User::create([
+                'name' => $request->name ?? 'Apple User',
+                'email' => $claims['email'] ?? null,
+                'apple_id' => $claims['sub'],
+                'password' => Hash::make(Str::random(32)),
+            ]);
+        } elseif (!$user->apple_id) {
+            $user->apple_id = $claims['sub'];
+            $user->save();
+        }
+        $token = $user->createToken('mobile')->plainTextToken;
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
         ]);
     }
 }

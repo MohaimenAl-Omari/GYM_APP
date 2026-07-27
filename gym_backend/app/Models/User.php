@@ -16,6 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
     'password',
     'phone_number',
     'google_id',
+    'apple_id',
     'age',
     'weight',
     'height',

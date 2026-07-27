@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isGoogleLoading = false;
+  bool _isAppleLoading = false;
   bool _isRegisterLoading = false;
 
   final AuthService _authService = AuthService();
@@ -76,6 +77,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final String? error = await _authService.signUpWithGoogleAccount();
     if (!mounted) return;
     setState(() => _isGoogleLoading = false);
+
+    if (error == null) {
+      _goToCompleteProfile();
+    } else {
+      _showMessage(error);
+    }
+  }
+
+  Future<void> _handleAppleSignUp() async {
+    setState(() => _isAppleLoading = true);
+    final String? error = await _authService.signUpWithAppleAccount();
+    if (!mounted) return;
+    setState(() => _isAppleLoading = false);
 
     if (error == null) {
       _goToCompleteProfile();
@@ -331,10 +345,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(width: 14),
                       Expanded(
                         child: _buildSocialButton(
-                          label: 'apple'.tr,
+                          label: _isAppleLoading ? 'loading'.tr : 'apple'.tr,
                           icon: Icons.apple,
                           iconColor: Colors.white,
-                          onTap: () {},
+                          onTap: _isAppleLoading ? null : _handleAppleSignUp,
                         ),
                       ),
                     ],
