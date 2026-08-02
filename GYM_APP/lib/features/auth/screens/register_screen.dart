@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
 import 'package:gym_app/core/services/auth_service.dart';
+import 'package:gym_app/features/auth/models/login_result.dart';
+import 'package:gym_app/features/home/screens/home_screen.dart';
 import 'package:gym_app/features/profile/screens/complete_profile_screen.dart';
 import 'package:gym_app/shared/widgets/language_switcher.dart';
 
@@ -74,39 +76,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleGoogleSignUp() async {
     setState(() => _isGoogleLoading = true);
-    final String? error = await _authService.signUpWithGoogleAccount();
+    final result = await _authService.signUpWithGoogleAccount();
     if (!mounted) return;
     setState(() => _isGoogleLoading = false);
-
-    if (error == null) {
-      _goToCompleteProfile();
-    } else {
-      _showMessage(error);
-    }
+    _routeAfterSocialAuth(result);
   }
 
   Future<void> _handleAppleSignUp() async {
     setState(() => _isAppleLoading = true);
-    final String? error = await _authService.signUpWithAppleAccount();
+    final result = await _authService.signUpWithAppleAccount();
     if (!mounted) return;
     setState(() => _isAppleLoading = false);
-
-    if (error == null) {
-      _goToCompleteProfile();
-    } else {
-      _showMessage(error);
-    }
+    _routeAfterSocialAuth(result);
   }
 
   void _showMessage(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  /// Every new account — manual or Google — still needs age/weight/height/
-  /// goal filled in, so both paths land here instead of going straight in.
+  /// Manual phone sign-up is always a brand new account, so it always
+  /// needs age/weight/height/goal filled in.
   void _goToCompleteProfile() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const CompleteProfileScreen()),
+    );
+  }
+
+  /// Google/Apple double as both "sign up" and "sign in" — if the backend
+  /// recognizes the account and it already has age/weight/height/goal
+  /// saved, go straight to Home instead of asking for that info again.
+  /// A canceled system dialog does nothing (no navigation, no error).
+  void _routeAfterSocialAuth(LoginResult result) {
+    if (result.canceled) return;
+    if (!result.success) {
+      _showMessage(result.error!);
+      return;
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => result.profileComplete
+            ? const HomeScreen()
+            : const CompleteProfileScreen(),
+      ),
     );
   }
 
@@ -244,7 +255,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         _buildLabel('phone_number'.tr),
                         const SizedBox(height: 8),
                         _buildTextField(
-                          hint: '+9627xxxxxxxxx',
+                          hint: '07xxxxxxxxx',
                           icon: Icons.phone,
                           controller: _emailController,
                           keyboardType: TextInputType.phone,

@@ -13,6 +13,7 @@ Route::prefix('api_v1')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->prefix('user')->group(function () {
+        Route::get('/me', [ProfileController::class, 'me']);
         Route::put('/profile', [ProfileController::class, 'update']);
     });
 });

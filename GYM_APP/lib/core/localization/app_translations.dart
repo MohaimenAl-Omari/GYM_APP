@@ -62,10 +62,58 @@ class AppTranslations extends Translations {
     'invalid_height': 'Please enter a valid height.',
     'please_select_goal': 'Please select your goal.',
 
-    // Home placeholder
-    'home_welcome_title': "You're all set!",
-    'home_welcome_subtitle': 'Your dashboard is coming soon.',
+    // Home dashboard
+    'home_hi': 'Hi',
+    'home_ready_subtitle': "Ready to crush today's workout?",
+    'home_this_week': 'This Week',
+    'home_stat_workouts': 'Workouts',
+    'home_stat_minutes': 'Minutes',
+    'home_stat_streak': 'Day Streak',
+    'home_start_workout': 'Start Workout',
+    'home_start_workout_subtitle': 'Begin a new training session',
+    'home_quick_actions': 'Quick Actions',
+    'home_exercises': 'Exercises',
+    'home_progress': 'Progress',
+    'home_history': 'History',
+    'home_profile': 'Profile',
+    'home_coming_soon': 'Coming soon',
     'logout': 'Logout',
+
+    // Exercise library
+    'exercises_empty': 'No exercises here yet.',
+    'search_exercises': 'Search exercises...',
+    'last_performance': 'Last Performance',
+    'last_time_on': 'Last time on',
+    'no_history_yet': "You haven't logged this exercise yet.",
+    'set_label': 'Set',
+    'reps_label': 'reps',
+    'generic_error': 'Something went wrong. Please try again.',
+    'retry': 'Retry',
+
+    // Start workout
+    'choose_muscle_groups': 'Choose muscle groups',
+    'choose_exercises': 'Choose exercises',
+
+    // Active workout logging
+    'last_time': 'Last time',
+    'confirm_set': 'Confirm Set',
+    'resting': 'Resting',
+    'skip': 'Skip',
+    'exercise_progress': 'Exercise',
+    'finish_workout': 'Finish',
+    'leave_workout_title': 'Leave this workout?',
+    'leave_workout_message':
+        "Your logged sets are already saved, but you'll end the session early.",
+    'cancel': 'Cancel',
+    'leave': 'Leave',
+    'save': 'Save',
+
+    // Workout summary
+    'workout_complete': 'Workout Complete',
+    'workout_complete_subtitle': 'Nice work — logged and saved.',
+    'total_sets': 'Sets',
+    'total_volume': 'Volume',
+    'done': 'Done',
   };
 
   static const Map<String, String> _ar = {
@@ -123,9 +171,56 @@ class AppTranslations extends Translations {
     'invalid_height': 'يرجى إدخال طول صحيح.',
     'please_select_goal': 'يرجى اختيار هدفك.',
 
-    // Home placeholder
-    'home_welcome_title': 'كل شيء جاهز!',
-    'home_welcome_subtitle': 'لوحة التحكم الخاصة بك قادمة قريبًا.',
+    // Home dashboard
+    'home_hi': 'مرحباً',
+    'home_ready_subtitle': 'هل أنت مستعد لتمرين اليوم؟',
+    'home_this_week': 'هذا الأسبوع',
+    'home_stat_workouts': 'تمارين',
+    'home_stat_minutes': 'دقيقة',
+    'home_stat_streak': 'يوم متتالي',
+    'home_start_workout': 'ابدأ التمرين',
+    'home_start_workout_subtitle': 'ابدأ جلسة تدريب جديدة',
+    'home_quick_actions': 'إجراءات سريعة',
+    'home_exercises': 'التمارين',
+    'home_progress': 'التقدم',
+    'home_history': 'السجل',
+    'home_profile': 'الملف الشخصي',
+    'home_coming_soon': 'قريباً',
     'logout': 'تسجيل الخروج',
+
+    // Exercise library
+    'exercises_empty': 'لا توجد تمارين هنا بعد.',
+    'search_exercises': 'ابحث عن تمارين...',
+    'last_performance': 'آخر أداء',
+    'last_time_on': 'آخر مرة بتاريخ',
+    'no_history_yet': 'لم تسجّل هذا التمرين بعد.',
+    'set_label': 'مجموعة',
+    'reps_label': 'تكرار',
+    'generic_error': 'حدث خطأ ما. حاول مرة أخرى.',
+    'retry': 'إعادة المحاولة',
+
+    // Start workout
+    'choose_muscle_groups': 'اختر المجموعات العضلية',
+    'choose_exercises': 'اختر التمارين',
+
+    // Active workout logging
+    'last_time': 'آخر مرة',
+    'confirm_set': 'تأكيد المجموعة',
+    'resting': 'راحة',
+    'skip': 'تخطي',
+    'exercise_progress': 'تمرين',
+    'finish_workout': 'إنهاء',
+    'leave_workout_title': 'مغادرة التمرين؟',
+    'leave_workout_message': 'المجموعات اللي سجّلتها محفوظة، بس رح تنهي الجلسة بدري.',
+    'cancel': 'إلغاء',
+    'leave': 'مغادرة',
+    'save': 'حفظ',
+
+    // Workout summary
+    'workout_complete': 'اكتمل التمرين',
+    'workout_complete_subtitle': 'أداء رائع — تم الحفظ.',
+    'total_sets': 'المجموعات',
+    'total_volume': 'الحجم',
+    'done': 'تم',
   };
 }

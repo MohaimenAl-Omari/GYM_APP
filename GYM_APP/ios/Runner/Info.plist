@@ -58,5 +58,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Dev-only: allows plain HTTP to localhost/LAN IPs so the app can
+		     reach the local Laravel server (baseUrl in const.dart). Remove
+		     or tighten this once the backend is served over HTTPS. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

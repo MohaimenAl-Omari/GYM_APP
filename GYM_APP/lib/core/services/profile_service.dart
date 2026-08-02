@@ -32,6 +32,9 @@ class ProfileService {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
+      // Keep the cached flag in sync so an offline app restart right
+      // after this still knows the profile is complete.
+      await prefs.setBool('profile_complete', true);
       return null;
     } on DioException catch (e) {
       final data = e.response?.data;
