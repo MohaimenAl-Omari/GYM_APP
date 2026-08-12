@@ -24,13 +24,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final AuthService _authService = AuthService();
 
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
+  static final RegExp _usernamePattern = RegExp(r'^[a-zA-Z0-9_-]+$');
+
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -39,13 +43,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     final name = _nameController.text.trim();
+    final username = _usernameController.text.trim();
     final phone = _emailController.text.trim();
     final password = _passwordController.text;
     final confirm = _confirmController.text;
 
     // Quick client-side checks before hitting the server
-    if (name.isEmpty || phone.isEmpty || password.isEmpty || confirm.isEmpty) {
+    if (name.isEmpty ||
+        username.isEmpty ||
+        phone.isEmpty ||
+        password.isEmpty ||
+        confirm.isEmpty) {
       _showMessage('please_fill_all_fields'.tr);
+      return;
+    }
+    // Mirrors the backend's `alpha_dash` rule — letters, numbers, dashes
+    // and underscores only, no spaces. Catching this here avoids a round
+    // trip just to find out the username has a space in it.
+    if (!_usernamePattern.hasMatch(username)) {
+      _showMessage('invalid_username'.tr);
       return;
     }
     if (password.length < 8) {
@@ -60,6 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isRegisterLoading = true);
     final String? error = await _authService.registerWithPhone(
       name: name,
+      username: username,
       phone: phone,
       password: password,
       passwordConfirmation: confirm,
@@ -248,6 +265,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           hint: 'John Doe',
                           icon: Icons.person_outline_rounded,
                           controller: _nameController,
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        _buildLabel('username'.tr),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          hint: 'johndoe',
+                          icon: Icons.alternate_email_rounded,
+                          controller: _usernameController,
+                          keyboardType: TextInputType.visiblePassword,
                         ),
 
                         const SizedBox(height: 18),

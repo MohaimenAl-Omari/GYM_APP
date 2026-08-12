@@ -47,7 +47,7 @@ class _MuscleGroupExercisesScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 8),
               child: Row(
                 children: [
                   GestureDetector(
@@ -79,7 +79,7 @@ class _MuscleGroupExercisesScreenState
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 8),
               child: TextField(
                 controller: _searchController,
                 onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
@@ -133,7 +133,7 @@ class _MuscleGroupExercisesScreenState
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                    padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 32),
                     itemCount: exercises.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {

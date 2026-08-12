@@ -23,5 +23,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(AdminSeeder::class);
+        $this->call(MuscleGroupSeeder::class);
+        $this->call(ExerciseSeeder::class);
     }
 }

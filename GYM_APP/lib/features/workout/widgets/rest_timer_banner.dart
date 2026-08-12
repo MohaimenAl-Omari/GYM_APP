@@ -24,7 +24,7 @@ class RestTimerBanner extends StatelessWidget {
     final progress = totalSeconds == 0 ? 0.0 : 1 - (secondsRemaining / totalSeconds);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 14, 20, 14),
       decoration: BoxDecoration(
         color: AppColors.darkSurface,
         border: Border(top: BorderSide(color: AppColors.darkBorder)),

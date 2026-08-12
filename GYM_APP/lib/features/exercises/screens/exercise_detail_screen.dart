@@ -34,7 +34,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       backgroundColor: AppColors.darkBackground,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -59,12 +59,15 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               const SizedBox(height: 16),
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: exercise.mediaUrl != null
+                child: exercise.demoUrl != null
                     ? Image.network(
-                        exercise.mediaUrl!,
+                        exercise.demoUrl!,
                         width: double.infinity,
                         height: 200,
                         fit: BoxFit.cover,
+                        // Image.network plays animated GIFs natively, so a
+                        // gifUrl demo loops here just like a static photo
+                        // would render.
                         errorBuilder: (_, __, ___) => _placeholder(),
                       )
                     : _placeholder(),
@@ -84,6 +87,23 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   exercise.localizedDescription(isArabic)!,
                   style: const TextStyle(color: AppColors.textGrey, fontSize: 14, height: 1.5),
                 ),
+              ],
+              if (exercise.targetMuscle != null || exercise.secondaryMuscles.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                _MuscleChipsSection(exercise: exercise),
+              ],
+              if (exercise.instructions.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text(
+                  'how_to'.tr,
+                  style: const TextStyle(
+                    color: AppColors.textWhite,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _InstructionsCard(instructions: exercise.instructions),
               ],
               const SizedBox(height: 24),
               Text(
@@ -183,6 +203,119 @@ class _LastPerformanceCard extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Primary target muscle highlighted in the app's accent color, secondary
+/// muscles shown as muted chips — mirrors which muscles light up in a
+/// muscle-highlight demo video, without needing one.
+class _MuscleChipsSection extends StatelessWidget {
+  const _MuscleChipsSection({required this.exercise});
+
+  final Exercise exercise;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (exercise.targetMuscle != null)
+          _MuscleChip(label: exercise.targetMuscle!, isPrimary: true),
+        ...exercise.secondaryMuscles.map(
+          (muscle) => _MuscleChip(label: muscle, isPrimary: false),
+        ),
+      ],
+    );
+  }
+}
+
+class _MuscleChip extends StatelessWidget {
+  const _MuscleChip({required this.label, required this.isPrimary});
+
+  final String label;
+  final bool isPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: isPrimary ? AppColors.primary.withOpacity(0.16) : AppColors.darkSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPrimary ? AppColors.primary : AppColors.darkBorder,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isPrimary ? AppColors.primary : AppColors.textLightGrey,
+          fontSize: 12,
+          fontWeight: isPrimary ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _InstructionsCard extends StatelessWidget {
+  const _InstructionsCard({required this.instructions});
+
+  final List<String> instructions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < instructions.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == instructions.length - 1 ? 0 : 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.darkCard,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      instructions[i],
+                      style: const TextStyle(
+                        color: AppColors.textLightGrey,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

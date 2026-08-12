@@ -37,12 +37,12 @@ class AuthService {
         user['goal'] != null;
   }
 
-  Future<LoginResult> loginWithPhone(String phone, String password) async {
+  Future<LoginResult> loginWithName(String username, String password) async {
     try {
       final Response response = await _dio.post(
         '/auth/login',
         data: {
-          'phone': phone,
+          'username': username,
           'password': password,
         },
       );
@@ -70,6 +70,7 @@ class AuthService {
 
   Future<String?> registerWithPhone({
     required String name,
+    required String username,
     required String phone,
     required String password,
     required String passwordConfirmation,
@@ -79,6 +80,7 @@ class AuthService {
         '/auth/signUp',
         data: {
           'name': name,
+          'username': username,
           'phone': phone,
           'password': password,
           'password_confirmation': passwordConfirmation,
@@ -95,12 +97,14 @@ class AuthService {
       await prefs.setBool('profile_complete', _isProfileComplete(user));
       return null;
     } on DioException catch (e) {
+      print(e);
       final data = e.response?.data;
       if (data is Map && data['message'] != null) {
         return data['message'].toString();
       }
       return 'Could not connect to the server. Please try again.' + '$e';
     } catch (e) {
+
       return 'Something went wrong. Please try again.';
     }
   }

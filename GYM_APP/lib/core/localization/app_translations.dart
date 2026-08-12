@@ -30,6 +30,8 @@ class AppTranslations extends Translations {
     'create_account': 'Create Account',
     'register_subtitle': 'Start your fitness journey today \u{1F4AA}',
     'full_name': 'Full Name',
+    'username': 'Username',
+    'invalid_username': 'Username can only contain letters, numbers, - and _.',
     'phone_number': 'Phone Number',
     'confirm_password': 'Confirm Password',
     'creating_account': 'Creating account...',
@@ -77,6 +79,7 @@ class AppTranslations extends Translations {
     'home_history': 'History',
     'home_profile': 'Profile',
     'home_coming_soon': 'Coming soon',
+    'home_demo_exercise': 'Demo: Bench Press',
     'logout': 'Logout',
 
     // Exercise library
@@ -89,6 +92,31 @@ class AppTranslations extends Translations {
     'reps_label': 'reps',
     'generic_error': 'Something went wrong. Please try again.',
     'retry': 'Retry',
+
+    // History tab
+    'history_title': 'Workout History',
+    'history_empty': "You haven't logged any workouts yet.",
+    'history_load_error': "Couldn't load your workout history.",
+    'history_exercises': 'Exercises',
+
+    // Repeat last workout + session overview
+    'repeat_last_workout': 'Repeat Last Workout',
+    'session_overview': 'Session Overview',
+    'not_started': 'Not started',
+    'sets_logged_suffix': 'sets',
+
+    // Settings
+    'settings_title': 'Settings',
+    'personal_info': 'Personal Info',
+    'preferences': 'Preferences',
+    'language': 'Language',
+    'account': 'Account',
+    'save_changes': 'Save Changes',
+    'profile_updated': 'Profile updated',
+    'app_version': 'Gym App — version 1.0.0',
+    'target_muscle': 'Target Muscle',
+    'also_works': 'Also Works',
+    'how_to': 'How To',
 
     // Start workout
     'choose_muscle_groups': 'Choose muscle groups',
@@ -140,6 +168,8 @@ class AppTranslations extends Translations {
     'create_account': 'إنشاء حساب',
     'register_subtitle': 'ابدأ رحلتك الرياضية اليوم \u{1F4AA}',
     'full_name': 'الاسم الكامل',
+    'username': 'اسم المستخدم',
+    'invalid_username': 'اسم المستخدم يجب أن يحتوي أحرف وأرقام و - و _ فقط.',
     'phone_number': 'رقم الهاتف',
     'confirm_password': 'تأكيد كلمة المرور',
     'creating_account': 'جارٍ إنشاء الحساب...',
@@ -186,6 +216,7 @@ class AppTranslations extends Translations {
     'home_history': 'السجل',
     'home_profile': 'الملف الشخصي',
     'home_coming_soon': 'قريباً',
+    'home_demo_exercise': 'عرض: بنش برس',
     'logout': 'تسجيل الخروج',
 
     // Exercise library
@@ -197,7 +228,32 @@ class AppTranslations extends Translations {
     'set_label': 'مجموعة',
     'reps_label': 'تكرار',
     'generic_error': 'حدث خطأ ما. حاول مرة أخرى.',
+
+    // History tab
+    'history_title': 'سجل التمارين',
+    'history_empty': 'لم تسجّل أي تمرين بعد.',
+    'history_load_error': 'تعذّر تحميل سجل التمارين.',
+    'history_exercises': 'التمارين',
+
+    // Repeat last workout + session overview
+    'repeat_last_workout': 'كرر آخر تمرين',
+    'session_overview': 'نظرة عامة على الجلسة',
+    'not_started': 'لم يبدأ',
+    'sets_logged_suffix': 'مجموعات',
+
+    // Settings
+    'settings_title': 'الإعدادات',
+    'personal_info': 'المعلومات الشخصية',
+    'preferences': 'التفضيلات',
+    'language': 'اللغة',
+    'account': 'الحساب',
+    'save_changes': 'حفظ التغييرات',
+    'profile_updated': 'تم تحديث الملف الشخصي',
+    'app_version': 'تطبيق الجيم — الإصدار 1.0.0',
     'retry': 'إعادة المحاولة',
+    'target_muscle': 'العضلة المستهدفة',
+    'also_works': 'تشغّل أيضًا',
+    'how_to': 'طريقة الأداء',
 
     // Start workout
     'choose_muscle_groups': 'اختر المجموعات العضلية',

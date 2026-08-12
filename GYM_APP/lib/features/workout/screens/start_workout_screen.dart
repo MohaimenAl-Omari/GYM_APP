@@ -7,6 +7,7 @@ import 'package:gym_app/features/exercises/models/muscle_group.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/features/workout/screens/workout_session_screen.dart';
 import 'package:gym_app/features/workout/services/workout_service.dart';
+import 'package:gym_app/features/workout/services/repeat_last_workout.dart';
 
 /// Pick muscle group(s) -> pick exercises -> start logging. Exercise
 /// selection order is preserved and sent to the backend as the session's
@@ -32,11 +33,41 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
   final Map<int, Exercise> _exercisesById = {};
 
   bool _starting = false;
+  LastWorkoutPreview? _lastWorkout;
+  bool _repeating = false;
 
   @override
   void initState() {
     super.initState();
     _groupsFuture = _exerciseService.fetchMuscleGroups();
+    _loadLastWorkout();
+  }
+
+  Future<void> _loadLastWorkout() async {
+    try {
+      final preview = await RepeatLastWorkout.fetchPreview();
+      if (!mounted) return;
+      setState(() => _lastWorkout = preview);
+    } catch (_) {
+      // Convenience shortcut only — a failure here shouldn't block picking
+      // exercises manually.
+    }
+  }
+
+  Future<void> _repeatLastWorkout() async {
+    if (_lastWorkout == null || _repeating) return;
+    setState(() => _repeating = true);
+    try {
+      await RepeatLastWorkout.start(context, _lastWorkout!.sessionId);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('generic_error'.tr)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _repeating = false);
+    }
   }
 
   Future<void> _toggleGroup(MuscleGroup group) async {
@@ -116,7 +147,7 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 8),
               child: Row(
                 children: [
                   GestureDetector(
@@ -147,10 +178,18 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_lastWorkout != null) ...[
+                      _RepeatLastWorkoutBanner(
+                        preview: _lastWorkout!,
+                        loading: _repeating,
+                        onTap: _repeatLastWorkout,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     Text(
                       'choose_muscle_groups'.tr,
                       style: const TextStyle(
@@ -275,7 +314,7 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
             SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+                padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 12),
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton(
@@ -308,6 +347,82 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RepeatLastWorkoutBanner extends StatelessWidget {
+  const _RepeatLastWorkoutBanner({
+    required this.preview,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final LastWorkoutPreview preview;
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isArabic = Get.find<LocaleController>().isArabic;
+    final label = preview.label(isArabic);
+
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.darkSurface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.darkCard,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.replay_rounded, color: AppColors.primary, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'repeat_last_workout'.tr,
+                    style: const TextStyle(
+                      color: AppColors.textWhite,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (label.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textGrey, size: 14),
           ],
         ),
       ),

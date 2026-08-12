@@ -17,7 +17,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
       backgroundColor: AppColors.darkBackground,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 40, 24, 32),
           child: Column(
             children: [
               const Spacer(),

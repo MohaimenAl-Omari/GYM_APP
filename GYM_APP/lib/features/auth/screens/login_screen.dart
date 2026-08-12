@@ -20,27 +20,27 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoginLoading = false;
   final AuthService _authService = AuthService();
 
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
-    final phone = _phoneController.text.trim();
+    final username = _usernameController.text.trim();
     final password = _passwordController.text;
 
-    if (phone.isEmpty || password.isEmpty) {
+    if (username.isEmpty || password.isEmpty) {
       _showMessage('please_fill_all_fields'.tr);
       return;
     }
 
     setState(() => _isLoginLoading = true);
-    final result = await _authService.loginWithPhone(phone, password);
+    final result = await _authService.loginWithName(username, password);
     if (!mounted) return;
     setState(() => _isLoginLoading = false);
 
@@ -201,14 +201,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Phone
-                        _buildLabel('phone_number'.tr),
+                        // Username
+                        _buildLabel('username'.tr),
                         const SizedBox(height: 8),
                         _buildTextField(
-                          hint: '+9627xxxxxxxxx',
-                          icon: Icons.phone,
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
+                          hint: 'johndoe',
+                          icon: Icons.alternate_email_rounded,
+                          controller: _usernameController,
                         ),
 
                         const SizedBox(height: 18),

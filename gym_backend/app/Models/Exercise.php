@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'description_en',
     'description_ar',
     'media',
+    'gif_url',
 ])]
 class Exercise extends Model
 {

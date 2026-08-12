@@ -9,6 +9,10 @@ class Exercise {
     this.descriptionEn,
     this.descriptionAr,
     this.media,
+    this.gifUrl,
+    this.targetMuscle,
+    this.secondaryMuscles = const [],
+    this.instructions = const [],
   });
 
   final int id;
@@ -19,10 +23,38 @@ class Exercise {
   final String? descriptionAr;
   final String? media;
 
+  /// Looping demo animation (GIF) for this exercise, e.g. from an exercise
+  /// content provider like ExerciseDB. Optional — falls back to [media]
+  /// (static image) when absent. Seeded exercises set this directly instead
+  /// of coming from the backend.
+  final String? gifUrl;
+
+  /// Primary muscle this exercise targets (e.g. "Pectoralis Major").
+  final String? targetMuscle;
+
+  /// Muscles worked secondarily (e.g. ["Triceps", "Shoulders"]).
+  final List<String> secondaryMuscles;
+
+  /// Step-by-step "how to" instructions, shown as a numbered list.
+  final List<String> instructions;
+
   String? get mediaUrl {
     if (media == null || media!.isEmpty) return null;
     return '$storageBaseUrl/$media';
   }
+
+  String? get _gifUrl {
+    if (gifUrl == null || gifUrl!.isEmpty) return null;
+    // Backend stores this as a relative storage path
+    // ("exercises/bench-press.gif"), same as media — it needs the same
+    // storageBaseUrl prefix or Image.network gets an invalid URL and
+    // silently fails to load.
+    return '$storageBaseUrl/$gifUrl';
+  }
+
+  /// The best available demo visual: animated [gifUrl] if present,
+  /// otherwise the static [mediaUrl].
+  String? get demoUrl => _gifUrl ?? mediaUrl;
 
   String localizedName(bool isArabic) => isArabic ? nameAr : nameEn;
 
@@ -38,6 +70,16 @@ class Exercise {
       descriptionEn: json['description_en']?.toString(),
       descriptionAr: json['description_ar']?.toString(),
       media: json['media']?.toString(),
+      gifUrl: json['gif_url']?.toString(),
+      targetMuscle: json['target_muscle']?.toString(),
+      secondaryMuscles: (json['secondary_muscles'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      instructions: (json['instructions'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 }

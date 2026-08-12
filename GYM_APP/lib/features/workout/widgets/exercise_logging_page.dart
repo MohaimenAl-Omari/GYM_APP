@@ -26,7 +26,11 @@ class ExerciseLoggingPage extends StatefulWidget {
   final int sessionId;
   final SessionExercise sessionExercise;
   final Exercise exercise;
-  final VoidCallback onSetLogged;
+
+  /// Called with (sessionExerciseId, totalConfirmedSets) right after a set
+  /// is saved — the parent uses this both to start the rest timer and to
+  /// keep its own progress map for the session overview panel in sync.
+  final void Function(int sessionExerciseId, int totalConfirmedSets) onSetLogged;
 
   @override
   State<ExerciseLoggingPage> createState() => _ExerciseLoggingPageState();
@@ -91,7 +95,7 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
         _confirmedSets.add(saved);
         _prefillNextDraft(performance);
       });
-      widget.onSetLogged();
+      widget.onSetLogged(widget.sessionExercise.id, _confirmedSets.length);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -151,10 +155,27 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
         final performance = snapshot.data ?? ExerciseLastPerformance.empty;
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          // EdgeInsetsDirectional instead of EdgeInsets.fromLTRB: the old
+          // values were symmetric (24/24) so this doesn't change how it
+          // looks today, but it means padding stays correct if this ever
+          // becomes asymmetric — see gym-app-mobile-ui-ux skill.
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: widget.exercise.demoUrl != null
+                    ? Image.network(
+                        widget.exercise.demoUrl!,
+                        width: double.infinity,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                      )
+                    : _imagePlaceholder(),
+              ),
+              const SizedBox(height: 16),
               Text(
                 widget.exercise.localizedName(isArabic),
                 style: const TextStyle(
@@ -251,6 +272,15 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _imagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 180,
+      color: AppColors.darkSurface,
+      child: const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 40),
     );
   }
 }

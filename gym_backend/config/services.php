@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    // RapidAPI key for "EDB WITH IMAGES AND GIFS by AscendAPI" — subscribe
+    // (free Basic plan, no card) at:
+    // https://rapidapi.com/ascendapi/api/edb-with-gifs-and-images-by-ascendapi
+    // Used by php artisan exercises:fetch-gifs to backfill real gif_url
+    // values onto the seeded exercises.
+    'exercisedb' => [
+        'key' => env('EXERCISEDB_RAPIDAPI_KEY'),
+        'host' => 'edb-with-gifs-and-images-by-ascendapi.p.rapidapi.com',
+    ],
+
 ];

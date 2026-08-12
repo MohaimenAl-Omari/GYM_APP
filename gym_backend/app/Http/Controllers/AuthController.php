@@ -60,6 +60,7 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name'     => 'required|string|max:255',
+            'username' => 'required|string|max:30|alpha_dash|unique:users,username',
             'phone'    => 'required|string|max:20|unique:users,phone_number',
             'password' => 'required|string|min:8|confirmed',
         ]);
@@ -71,9 +72,10 @@ class AuthController extends Controller
             ], 422);
         }
         $user = User::create([
-            'name'     => $request->name,
-            'phone_number'    => $request->phone,
-            'password' => $request->password,
+            'name'         => $request->name,
+            'username'     => $request->username,
+            'phone_number' => $request->phone,
+            'password'     => $request->password,
         ]);
         $token = $user->createToken('mobile')->plainTextToken;
         return response()->json([
@@ -84,10 +86,10 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function loginWithPhone(Request $request)
+    public function loginWithName(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'phone'    => 'required|string',
+            'username'    => 'required|string',
             'password' => 'required',
         ]);
         if ($validator->fails()) {
@@ -97,7 +99,7 @@ class AuthController extends Controller
                 'errors'  => $validator->errors(),
             ], 400);
         }
-        $user = User::where('phone_number', $request->phone)->first();
+        $user = User::where('username', $request->username)->first();
         if ($user === null || $user->password === null || ! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status'  => false,
@@ -105,7 +107,7 @@ class AuthController extends Controller
             ], 401);
         }
         $user->tokens()->delete();
-        $token = $user->createToken('mobile')->plainTextToken;
+        $token = $user->createToken('name_login')->plainTextToken;
         return response()->json([
             'status'  => true,
             'message' => 'Login successful',

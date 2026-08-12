@@ -42,7 +42,7 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 8),
               child: Row(
                 children: [
                   _BackButton(onTap: () => Navigator.of(context).pop()),
@@ -93,7 +93,7 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                     }
                     return GridView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                      padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 32),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         mainAxisSpacing: 14,

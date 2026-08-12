@@ -52,6 +52,53 @@ logged it.
 
 ## Workout sessions (auth required)
 
+`GET /api_v1/workout-sessions`
+History tab's list view — every session the current user has started, most
+recent first. Summary only (no per-set data) so the list stays cheap to load.
+```json
+[
+  {
+    "id": 501,
+    "date": "2026-08-03",
+    "muscle_groups": [{ "id": 1, "name_en": "Chest", "name_ar": "الصدر" }],
+    "exercise_count": 3,
+    "total_sets": 12,
+    "total_volume": 3400
+  }
+]
+```
+
+`GET /api_v1/workout-sessions/{session}`
+Full breakdown for one past session — everything `index` returns, plus
+`notes` and the exercises/sets actually logged.
+```json
+{
+  "id": 501,
+  "date": "2026-08-03",
+  "muscle_groups": [{ "id": 1, "name_en": "Chest", "name_ar": "الصدر" }],
+  "exercise_count": 3,
+  "total_sets": 12,
+  "total_volume": 3400,
+  "notes": "felt strong today",
+  "exercises": [
+    {
+      "session_exercise_id": 9001,
+      "exercise_id": 10,
+      "name_en": "Bench Press",
+      "name_ar": "بنش برس",
+      "gif_url": "exercises/bench-press.gif",
+      "media": null,
+      "order": 1,
+      "sets": [
+        { "id": 501, "set_number": 1, "reps": 10, "weight": 60, "weight_unit": "kg", "rest_time": 90 }
+      ]
+    }
+  ]
+}
+```
+Returns 403 if the session doesn't belong to the logged-in user (same
+`authorizeSession` check every other session endpoint uses).
+
 `POST /api_v1/workout-sessions`
 Starts a session. Request:
 ```json

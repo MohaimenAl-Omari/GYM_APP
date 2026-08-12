@@ -4,8 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gym_app/core/services/auth_service.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
 import 'package:gym_app/features/auth/screens/login_screen.dart';
+import 'package:gym_app/features/exercises/data/exercise_seed_data.dart';
+import 'package:gym_app/features/exercises/screens/exercise_detail_screen.dart';
 import 'package:gym_app/features/exercises/screens/exercises_screen.dart';
 import 'package:gym_app/features/workout/screens/start_workout_screen.dart';
+import 'package:gym_app/features/workout/screens/history_screen.dart';
+import 'package:gym_app/features/workout/services/repeat_last_workout.dart';
+import 'package:gym_app/core/localization/locale_controller.dart';
+import 'package:gym_app/features/profile/screens/settings_screen.dart';
 import 'package:gym_app/shared/widgets/language_switcher.dart';
 
 /// Main dashboard the user lands on after login/onboarding.
@@ -24,11 +30,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   String _userName = '';
+  LastWorkoutPreview? _lastWorkout;
+  bool _repeating = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserName();
+    _loadLastWorkout();
   }
 
   Future<void> _loadUserName() async {
@@ -36,6 +45,33 @@ class _HomeScreenState extends State<HomeScreen> {
     final name = prefs.getString('user_name') ?? '';
     if (!mounted) return;
     setState(() => _userName = name);
+  }
+
+  Future<void> _loadLastWorkout() async {
+    try {
+      final preview = await RepeatLastWorkout.fetchPreview();
+      if (!mounted) return;
+      setState(() => _lastWorkout = preview);
+    } catch (_) {
+      // Silently skip the shortcut if this fails — it's a convenience,
+      // not something that should block the rest of the home screen.
+    }
+  }
+
+  Future<void> _repeatLastWorkout() async {
+    if (_lastWorkout == null || _repeating) return;
+    setState(() => _repeating = true);
+    try {
+      await RepeatLastWorkout.start(context, _lastWorkout!.sessionId);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('generic_error'.tr)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _repeating = false);
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -71,13 +107,17 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+            padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(firstName),
                 const SizedBox(height: 28),
                 _buildStartWorkoutCard(),
+                if (_lastWorkout != null) ...[
+                  const SizedBox(height: 12),
+                  _buildRepeatLastWorkoutCard(),
+                ],
                 const SizedBox(height: 28),
                 _buildStatsRow(),
                 const SizedBox(height: 28),
@@ -159,6 +199,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+    );
+  }
+
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
   Widget _buildStartWorkoutCard() {
     return GestureDetector(
       onTap: _openStartWorkout,
@@ -221,6 +273,69 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const Icon(Icons.arrow_forward_ios_rounded,
                 color: Colors.white, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRepeatLastWorkoutCard() {
+    final isArabic = Get.find<LocaleController>().isArabic;
+    final label = _lastWorkout!.label(isArabic);
+
+    return GestureDetector(
+      onTap: _repeating ? null : _repeatLastWorkout,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.darkSurface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.darkBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.darkCard,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.replay_rounded, color: AppColors.primary, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'repeat_last_workout'.tr,
+                    style: const TextStyle(
+                      color: AppColors.textWhite,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (label.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            _repeating
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textGrey, size: 14),
           ],
         ),
       ),
@@ -323,13 +438,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _QuickAction(
         icon: Icons.history_rounded,
         labelKey: 'home_history',
-        onTap: _showComingSoon,
+        onTap: _openHistory,
       ),
       _QuickAction(
         icon: Icons.person_outline_rounded,
         labelKey: 'home_profile',
-        onTap: _showComingSoon,
+        onTap: _openSettings,
       ),
+
     ];
 
     return Column(

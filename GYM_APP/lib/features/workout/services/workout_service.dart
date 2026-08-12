@@ -4,6 +4,7 @@ import '../../../core/constant/const.dart';
 import '../models/logged_set.dart';
 import '../models/session_exercise.dart';
 import '../models/workout_session.dart';
+import '../models/workout_history.dart';
 
 class WorkoutService {
   final Dio _dio = Dio(BaseOptions(
@@ -78,5 +79,28 @@ class WorkoutService {
       options: await _authOptions(),
     );
     return WorkoutSummary.fromJson(Map<String, dynamic>.from(response.data as Map));
+  }
+
+  /// History tab's list — every session the user has started, most recent
+  /// first, summary only (no per-set data).
+  Future<List<WorkoutHistoryItem>> fetchHistory() async {
+    final response = await _dio.get(
+      '/workout-sessions',
+      options: await _authOptions(),
+    );
+    final raw = response.data as List<dynamic>? ?? const [];
+    return raw
+        .map((e) => WorkoutHistoryItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Full exercise/set breakdown for one past session, shown when a
+  /// History list row is tapped.
+  Future<WorkoutHistoryDetail> fetchSessionDetail(int sessionId) async {
+    final response = await _dio.get(
+      '/workout-sessions/$sessionId',
+      options: await _authOptions(),
+    );
+    return WorkoutHistoryDetail.fromJson(Map<String, dynamic>.from(response.data as Map));
   }
 }

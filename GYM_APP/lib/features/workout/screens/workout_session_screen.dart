@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:gym_app/core/localization/locale_controller.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
 import 'package:gym_app/features/exercises/models/exercise.dart';
 import 'package:gym_app/features/workout/models/workout_session.dart';
@@ -36,6 +37,11 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   Timer? _restTimer;
   int? _restSecondsRemaining;
   bool _finishing = false;
+
+  // sessionExercise.id -> sets confirmed so far, kept in sync by each
+  // ExerciseLoggingPage's onSetLogged callback. Feeds the overview panel
+  // so it can show progress without re-fetching anything.
+  final Map<int, int> _setsLoggedByExercise = {};
 
   @override
   void dispose() {
@@ -86,6 +92,108 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     }
   }
 
+  void _jumpToExercise(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _showOverview() {
+    final isArabic = Get.find<LocaleController>().isArabic;
+    final sessionExercises = widget.session.sessionExercises;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.darkSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'session_overview'.tr,
+                  style: const TextStyle(
+                    color: AppColors.textWhite,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: sessionExercises.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final sessionExercise = sessionExercises[index];
+                      final exercise = widget.exercisesById[sessionExercise.exerciseId];
+                      final setsLogged = _setsLoggedByExercise[sessionExercise.id] ?? 0;
+                      final isCurrent = index == _currentIndex;
+
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          _jumpToExercise(index);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isCurrent ? AppColors.primary.withOpacity(0.12) : AppColors.darkCard,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isCurrent ? AppColors.primary : Colors.transparent,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                setsLogged > 0
+                                    ? Icons.check_circle_rounded
+                                    : Icons.circle_outlined,
+                                color: setsLogged > 0 ? AppColors.success : AppColors.textGrey,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  exercise?.localizedName(isArabic) ?? '',
+                                  style: const TextStyle(
+                                    color: AppColors.textWhite,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                setsLogged == 0
+                                    ? 'not_started'.tr
+                                    : '$setsLogged ${'sets_logged_suffix'.tr}',
+                                style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<bool> _confirmLeave() async {
     final result = await showDialog<bool>(
       context: context,
@@ -128,7 +236,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 12, 20, 8),
                 child: Row(
                   children: [
                     GestureDetector(
@@ -148,16 +256,30 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                     ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: Text(
-                        total == 0
-                            ? ''
-                            : '${'exercise_progress'.tr} ${_currentIndex + 1}/$total',
-                        style: const TextStyle(
-                          color: AppColors.textGrey,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: total == 0
+                          ? const SizedBox.shrink()
+                          : GestureDetector(
+                              onTap: _showOverview,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${'exercise_progress'.tr} ${_currentIndex + 1}/$total',
+                                    style: const TextStyle(
+                                      color: AppColors.textGrey,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.expand_more_rounded,
+                                    color: AppColors.textGrey,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
+                            ),
                     ),
                     TextButton(
                       onPressed: _finishing ? null : _finishWorkout,
@@ -200,7 +322,12 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                             sessionId: widget.session.id,
                             sessionExercise: sessionExercise,
                             exercise: exercise,
-                            onSetLogged: _startRestTimer,
+                            onSetLogged: (sessionExerciseId, totalConfirmedSets) {
+                              setState(() {
+                                _setsLoggedByExercise[sessionExerciseId] = totalConfirmedSets;
+                              });
+                              _startRestTimer();
+                            },
                           );
                         },
                       ),
@@ -213,7 +340,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                 )
               else if (total > 1)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                  padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 16),
                   child: Row(
                     children: [
                       _NavButton(
