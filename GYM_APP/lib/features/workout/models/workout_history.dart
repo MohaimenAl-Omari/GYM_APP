@@ -36,6 +36,7 @@ class WorkoutHistoryItem {
     required this.exerciseCount,
     required this.totalSets,
     required this.totalVolume,
+    this.durationSeconds,
   });
 
   final int id;
@@ -44,6 +45,11 @@ class WorkoutHistoryItem {
   final int exerciseCount;
   final int totalSets;
   final double totalVolume;
+
+  /// Null for sessions started before this was tracked, or (in principle)
+  /// one that was never finished — there's no separate "in progress"
+  /// status field, so null doubles as that signal.
+  final int? durationSeconds;
 
   factory WorkoutHistoryItem.fromJson(Map<String, dynamic> json) {
     final rawGroups = json['muscle_groups'] as List<dynamic>? ?? const [];
@@ -56,6 +62,7 @@ class WorkoutHistoryItem {
       exerciseCount: (json['exercise_count'] as num?)?.toInt() ?? 0,
       totalSets: (json['total_sets'] as num?)?.toInt() ?? 0,
       totalVolume: (json['total_volume'] as num?)?.toDouble() ?? 0,
+      durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
     );
   }
 }
@@ -157,6 +164,7 @@ class WorkoutHistoryDetail {
     required this.totalVolume,
     required this.exercises,
     this.notes,
+    this.durationSeconds,
   });
 
   final int id;
@@ -166,6 +174,7 @@ class WorkoutHistoryDetail {
   final double totalVolume;
   final List<HistoryExercise> exercises;
   final String? notes;
+  final int? durationSeconds;
 
   factory WorkoutHistoryDetail.fromJson(Map<String, dynamic> json) {
     final rawGroups = json['muscle_groups'] as List<dynamic>? ?? const [];
@@ -182,6 +191,7 @@ class WorkoutHistoryDetail {
       exercises: rawExercises
           .map((e) => HistoryExercise.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList(),
+      durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
     );
   }
 }

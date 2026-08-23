@@ -3,9 +3,13 @@ import 'package:get/get.dart';
 import 'package:gym_app/core/services/auth_service.dart';
 import 'package:gym_app/core/services/profile_service.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/auth/screens/login_screen.dart';
 import 'package:gym_app/features/profile/models/goal_option.dart';
 import 'package:gym_app/shared/widgets/language_switcher.dart';
+import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 
 /// Settings tab — profile summary, editable personal stats (the same
 /// fields collected on CompleteProfileScreen), language, and logout.
@@ -46,8 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<Map<String, dynamic>> _loadUser() async {
-    final token = await _authService.getToken();
-    final user = await _authService.fetchCurrentUser(token ?? '');
+    final user = await _authService.fetchCurrentUser();
     _ageController.text = user['age']?.toString() ?? '';
     _weightController.text = user['weight']?.toString() ?? '';
     _heightController.text = user['height']?.toString() ?? '';
@@ -88,7 +91,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (!mounted) return;
     setState(() => _saving = false);
-    _showMessage(error ?? 'profile_updated'.tr);
+    if (error != null) {
+      AppNotification.showError(context, error);
+    } else {
+      AppNotification.showSuccess(context, 'profile_updated'.tr);
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -103,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    AppNotification.showError(context, text);
   }
 
   @override
@@ -148,30 +155,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
             final user = snapshot.data ?? const {};
 
             return SingleChildScrollView(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 0, 24, 32),
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  24.rs(context), 0, 24.rs(context), 32.rs(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(),
                   const SizedBox(height: 12),
-                  _buildProfileCard(user),
-                  const SizedBox(height: 24),
-                  _sectionTitle('personal_info'.tr),
-                  const SizedBox(height: 12),
-                  _buildPersonalInfoCard(),
-                  const SizedBox(height: 24),
-                  _sectionTitle('preferences'.tr),
-                  const SizedBox(height: 12),
-                  _buildPreferencesCard(),
-                  const SizedBox(height: 24),
-                  _sectionTitle('account'.tr),
-                  const SizedBox(height: 12),
-                  _buildLogoutButton(),
-                  const SizedBox(height: 24),
+                  FadeSlideIn(child: _buildProfileCard(user)),
+                  SizedBox(height: 24.rs(context)),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 60),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionTitle('personal_info'.tr),
+                        const SizedBox(height: 12),
+                        _buildPersonalInfoCard(),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 24.rs(context)),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 120),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionTitle('preferences'.tr),
+                        const SizedBox(height: 12),
+                        _buildPreferencesCard(),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 24.rs(context)),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 180),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionTitle('account'.tr),
+                        const SizedBox(height: 12),
+                        _buildLogoutButton(),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 24.rs(context)),
                   Center(
                     child: Text(
                       'app_version'.tr,
-                      style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                      style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
                 ],
@@ -185,14 +217,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 8),
+      padding: EdgeInsetsDirectional.fromSTEB(
+          24.rs(context), 12.rs(context), 24.rs(context), 8.rs(context)),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Container(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: AppColors.darkCard,
                 borderRadius: BorderRadius.circular(14),
@@ -204,9 +237,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(width: 14),
           Text(
             'settings_title'.tr,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textWhite,
-              fontSize: 20,
+              fontSize: 20.rf(context),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -220,13 +253,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final username = user['username']?.toString();
     final phone = user['phone_number']?.toString();
 
-    return Container(
+    return AppCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+      color: AppColors.darkSurface,
+      borderColor: AppColors.darkBorder,
+      borderRadius: 18,
+      withShadow: false,
       child: Row(
         children: [
           Container(
@@ -245,9 +277,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textWhite,
-                    fontSize: 16,
+                    fontSize: 16.rf(context),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -255,14 +287,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 2),
                   Text(
                     '@$username',
-                    style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+                    style: TextStyle(color: AppColors.textGrey, fontSize: 13.rf(context)),
                   ),
                 ],
                 if ((phone ?? '').isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     phone!,
-                    style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+                    style: TextStyle(color: AppColors.textGrey, fontSize: 13.rf(context)),
                   ),
                 ],
               ],
@@ -276,29 +308,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _sectionTitle(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        color: AppColors.textWhite,
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-      ),
+      style: Theme.of(context).textTheme.titleSmall,
     );
   }
 
   Widget _buildPersonalInfoCard() {
-    return Container(
+    return AppCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+      color: AppColors.darkSurface,
+      borderColor: AppColors.darkBorder,
+      borderRadius: 18,
+      withShadow: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _fieldLabel('age'.tr),
           const SizedBox(height: 8),
           _numberField(controller: _ageController, icon: Icons.cake_outlined, hint: '25'),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.rs(context)),
           _fieldLabel('weight'.tr),
           const SizedBox(height: 8),
           Row(
@@ -315,7 +342,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _unitToggle(),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.rs(context)),
           _fieldLabel('height'.tr),
           const SizedBox(height: 8),
           _numberField(
@@ -324,11 +351,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             hint: '175',
             allowDecimal: true,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.rs(context)),
           _fieldLabel('goal'.tr),
           const SizedBox(height: 10),
           _goalGrid(),
-          const SizedBox(height: 20),
+          SizedBox(height: 20.rs(context)),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
@@ -342,13 +369,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ? const SizedBox(
                       height: 18,
                       width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textWhite),
                     )
                   : Text(
                       'save_changes'.tr,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
+                      style: TextStyle(
+                        color: AppColors.textWhite,
+                        fontSize: 14.rf(context),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -362,8 +389,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _fieldLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 13,
+      style: TextStyle(
+        fontSize: 13.rf(context),
         fontWeight: FontWeight.w600,
         color: AppColors.textLightGrey,
       ),
@@ -385,10 +412,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: TextFormField(
         controller: controller,
         keyboardType: TextInputType.numberWithOptions(decimal: allowDecimal),
-        style: const TextStyle(color: AppColors.textWhite, fontSize: 15),
+        style: TextStyle(color: AppColors.textWhite, fontSize: 15.rf(context)),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 14),
+          hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 14.rf(context)),
           prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -422,9 +449,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Text(
                 unit.tr,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.textGrey,
+                  color: isSelected ? AppColors.textWhite : AppColors.textGrey,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: 13.rf(context),
                 ),
               ),
             ),
@@ -467,7 +494,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(
                     color: isSelected ? AppColors.textWhite : AppColors.textGrey,
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                    fontSize: 13.rf(context),
                   ),
                 ),
               ],
@@ -479,21 +506,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildPreferencesCard() {
-    return Container(
+    return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+      color: AppColors.darkSurface,
+      borderColor: AppColors.darkBorder,
+      borderRadius: 18,
+      withShadow: false,
       child: Row(
         children: [
           Expanded(
             child: Text(
               'language'.tr,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textWhite,
-                fontSize: 14,
+                fontSize: 14.rf(context),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -505,38 +531,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildLogoutButton() {
-    return GestureDetector(
+    return AppCard(
       onTap: _loggingOut ? null : _handleLogout,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.darkSurface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.error.withOpacity(0.4)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.logout_rounded, color: AppColors.error, size: 19),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'logout'.tr,
-                style: const TextStyle(
-                  color: AppColors.error,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      color: AppColors.darkSurface,
+      borderColor: AppColors.error.withOpacity(0.4),
+      borderRadius: 18,
+      withShadow: false,
+      child: Row(
+        children: [
+          const Icon(Icons.logout_rounded, color: AppColors.error, size: 19),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'logout'.tr,
+              style: TextStyle(
+                color: AppColors.error,
+                fontSize: 14.rf(context),
+                fontWeight: FontWeight.w700,
               ),
             ),
-            if (_loggingOut)
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error),
-              ),
-          ],
-        ),
+          ),
+          if (_loggingOut)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error),
+            ),
+        ],
       ),
     );
   }

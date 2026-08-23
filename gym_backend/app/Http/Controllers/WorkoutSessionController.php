@@ -101,6 +101,9 @@ class WorkoutSessionController extends Controller
             'exercise_count' => $session->sessionExercises->count(),
             'total_sets' => $sets->count(),
             'total_volume' => $sets->sum(fn (WorkoutSet $set) => $set->reps * $set->weight),
+            // Null until finish() persists it — there's no separate
+            // "in progress" status field, so null doubles as that signal.
+            'duration_seconds' => $session->duration_seconds,
         ];
     }
 
@@ -240,19 +243,68 @@ class WorkoutSessionController extends Controller
         $validated = $request->validate([
             'notes' => ['nullable', 'string'],
         ]);
-        if (!empty($validated['notes'])) {
-            $workoutSession->update(['notes' => $validated['notes']]);
-        }
+
+        // Cast to a non-negative integer explicitly: Carbon's diffInSeconds
+        // can return a negative float depending on argument order/timezone,
+        // which MySQL rejects outright for an unsigned integer column.
+        $durationSeconds = (int) round(abs($workoutSession->created_at->diffInSeconds(now())));
+        $workoutSession->update([
+            'duration_seconds' => $durationSeconds,
+            ...(!empty($validated['notes']) ? ['notes' => $validated['notes']] : []),
+        ]);
+
         $sets = WorkoutSet::whereHas(
             'sessionExercise',
             fn($query) => $query->where('session_id', $workoutSession->id)
         )->get();
         return response()->json([
             'id' => $workoutSession->id,
-            'duration_seconds' => now()->diffInSeconds($workoutSession->created_at),
+            'duration_seconds' => $durationSeconds,
             'total_sets' => $sets->count(),
             'total_volume' => $sets->sum(fn($set) => $set->reps * $set->weight),
         ]);
+    }
+
+    /**
+     * PUT /api_v1/workout-sessions/{workoutSession}
+     * Body: { notes: string|null }
+     * Lets History edit a past session's notes after the fact — separate
+     * from finish() so editing doesn't require re-finishing.
+     */
+    public function update(Request $request, WorkoutSession $workoutSession): JsonResponse
+    {
+        $this->authorizeSession($request, $workoutSession);
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string'],
+        ]);
+        $workoutSession->update(['notes' => $validated['notes'] ?? null]);
+
+        return response()->json([
+            ...$this->summarize($workoutSession->load(['sessionMuscleGroups.muscleGroup', 'sessionExercises.sets'])),
+            'notes' => $workoutSession->notes,
+        ]);
+    }
+
+    /**
+     * DELETE /api_v1/workout-sessions/{workoutSession}
+     * Deletes the session and everything logged under it. Child rows
+     * (session_muscle_groups, session_exercises, sets) have no cascade FK,
+     * so they're removed manually in dependency order inside a
+     * transaction — same manual-multi-row style as store().
+     */
+    public function destroy(Request $request, WorkoutSession $workoutSession): JsonResponse
+    {
+        $this->authorizeSession($request, $workoutSession);
+
+        DB::transaction(function () use ($workoutSession) {
+            $sessionExerciseIds = $workoutSession->sessionExercises()->pluck('id');
+            WorkoutSet::whereIn('session_exercise_id', $sessionExerciseIds)->delete();
+            $workoutSession->sessionExercises()->delete();
+            $workoutSession->sessionMuscleGroups()->delete();
+            $workoutSession->delete();
+        });
+
+        return response()->json(['status' => true]);
     }
 
     /**

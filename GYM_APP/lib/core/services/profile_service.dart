@@ -1,13 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../constant/const.dart';
+import 'api_client.dart';
 
 class ProfileService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: baseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-  ));
+  final _dio = ApiClient.instance.dio;
+
   Future<String?> completeProfile({
     required int age,
     required double weight,
@@ -16,9 +13,6 @@ class ProfileService {
     required String goal,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
       await _dio.put(
         '/user/profile',
         data: {
@@ -28,12 +22,10 @@ class ProfileService {
           'weight_unit': weightUnit,
           'goal': goal,
         },
-        options: Options(
-          headers: {'Authorization': 'Bearer $token'},
-        ),
       );
       // Keep the cached flag in sync so an offline app restart right
       // after this still knows the profile is complete.
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('profile_complete', true);
       return null;
     } on DioException catch (e) {

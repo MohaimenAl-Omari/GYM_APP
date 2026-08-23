@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/services/profile_service.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/home/screens/home_screen.dart';
 import 'package:gym_app/features/profile/models/goal_option.dart';
 import 'package:gym_app/shared/widgets/language_switcher.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 
 /// Mandatory one-time screen shown right after account creation. The
 /// user cannot leave (no back button, back gesture disabled) until every
@@ -78,7 +83,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   void _showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    AppNotification.showError(context, text);
   }
 
   @override
@@ -90,105 +95,116 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         backgroundColor: AppColors.darkBackground,
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 26),
+            padding: EdgeInsets.symmetric(horizontal: 26.rs(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 16),
+                SizedBox(height: 16.rs(context)),
 
-                const Align(
-                  alignment: Alignment.centerRight,
-                  child: LanguageSwitcher(),
-                ),
-
-                const SizedBox(height: 24),
-
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Colors.white, Color(0xFFCCCCCC)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ).createShader(bounds),
-                  child: Text(
-                    'complete_profile_title'.tr,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
+                FadeSlideIn(
+                  child: const Align(
+                    alignment: Alignment.centerRight,
+                    child: LanguageSwitcher(),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'complete_profile_subtitle'.tr,
-                  style: const TextStyle(fontSize: 14, color: AppColors.textGrey),
-                ),
 
-                const SizedBox(height: 28),
+                SizedBox(height: 20.rs(context)),
 
-                Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    color: AppColors.darkSurface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.darkBorder),
-                  ),
+                FadeSlideIn(
+                  delay: const Duration(milliseconds: 40),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildLabel('age'.tr),
-                      const SizedBox(height: 8),
-                      _buildNumberField(
-                        controller: _ageController,
-                        icon: Icons.cake_outlined,
-                        hint: '25',
+                      ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [AppColors.textWhite, Color(0xFFCCCCCC)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ).createShader(bounds),
+                        child: Text(
+                          'complete_profile_title'.tr,
+                          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                color: AppColors.textWhite,
+                                letterSpacing: -0.5,
+                              ),
+                        ),
                       ),
-
-                      const SizedBox(height: 18),
-
-                      _buildLabel('weight'.tr),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildNumberField(
-                              controller: _weightController,
-                              icon: Icons.monitor_weight_outlined,
-                              hint: '70',
-                              allowDecimal: true,
+                      Text(
+                        'complete_profile_subtitle'.tr,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textGrey,
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          _buildUnitToggle(),
-                        ],
                       ),
-
-                      const SizedBox(height: 18),
-
-                      _buildLabel('height'.tr),
-                      const SizedBox(height: 8),
-                      _buildNumberField(
-                        controller: _heightController,
-                        icon: Icons.height_rounded,
-                        hint: '175',
-                        allowDecimal: true,
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      _buildLabel('goal'.tr),
-                      const SizedBox(height: 10),
-                      _buildGoalGrid(),
-
-                      const SizedBox(height: 24),
-
-                      _buildContinueButton(),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                SizedBox(height: 24.rs(context)),
+
+                FadeSlideIn(
+                  delay: const Duration(milliseconds: 90),
+                  child: AppCard(
+                    padding: const EdgeInsets.all(20),
+                    color: AppColors.darkSurface,
+                    borderColor: AppColors.darkBorder,
+                    borderRadius: 24,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('age'.tr),
+                        const SizedBox(height: 8),
+                        _buildNumberField(
+                          controller: _ageController,
+                          icon: Icons.cake_outlined,
+                          hint: '25',
+                        ),
+
+                        SizedBox(height: 16.rs(context)),
+
+                        _buildLabel('weight'.tr),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildNumberField(
+                                controller: _weightController,
+                                icon: Icons.monitor_weight_outlined,
+                                hint: '70',
+                                allowDecimal: true,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildUnitToggle(),
+                          ],
+                        ),
+
+                        SizedBox(height: 16.rs(context)),
+
+                        _buildLabel('height'.tr),
+                        const SizedBox(height: 8),
+                        _buildNumberField(
+                          controller: _heightController,
+                          icon: Icons.height_rounded,
+                          hint: '175',
+                          allowDecimal: true,
+                        ),
+
+                        SizedBox(height: 16.rs(context)),
+
+                        _buildLabel('goal'.tr),
+                        const SizedBox(height: 8),
+                        _buildGoalGrid(),
+
+                        SizedBox(height: 24.rs(context)),
+
+                        _buildContinueButton(),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 28.rs(context)),
               ],
             ),
           ),
@@ -200,8 +216,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 13,
+      style: TextStyle(
+        fontSize: 13.rf(context),
         fontWeight: FontWeight.w600,
         color: AppColors.textLightGrey,
         letterSpacing: 0.2,
@@ -224,10 +240,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       child: TextFormField(
         controller: controller,
         keyboardType: TextInputType.numberWithOptions(decimal: allowDecimal),
-        style: const TextStyle(color: AppColors.textWhite, fontSize: 15),
+        style: TextStyle(color: AppColors.textWhite, fontSize: 15.rf(context)),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 14),
+          hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 14.rf(context)),
           prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
           border: InputBorder.none,
           contentPadding:
@@ -258,8 +274,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Widget _buildUnitOption(String unit) {
     final isSelected = _weightUnit == unit;
-    return GestureDetector(
+    return AnimatedTap(
       onTap: () => setState(() => _weightUnit = unit),
+      borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -270,9 +287,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         child: Text(
           unit.tr,
           style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.textGrey,
+            color: isSelected ? AppColors.textWhite : AppColors.textGrey,
             fontWeight: FontWeight.w600,
-            fontSize: 13,
+            fontSize: 13.rf(context),
           ),
         ),
       ),
@@ -285,8 +302,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       runSpacing: 10,
       children: GoalOption.all.map((option) {
         final isSelected = _selectedGoal == option.value;
-        return GestureDetector(
+        return AnimatedTap(
           onTap: () => setState(() => _selectedGoal = option.value),
+          borderRadius: BorderRadius.circular(14),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -312,7 +330,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                   style: TextStyle(
                     color: isSelected ? AppColors.textWhite : AppColors.textGrey,
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                    fontSize: 13.rf(context),
                   ),
                 ),
               ],
@@ -324,32 +342,27 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   Widget _buildContinueButton() {
-    return GestureDetector(
+    return AnimatedTap(
       onTap: _isSaving ? null : _handleContinue,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,
         height: 54,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryDark],
+            colors: AppColors.primaryGradient,
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.primaryGlow,
         ),
         child: Center(
           child: Text(
             _isSaving ? 'saving'.tr : 'continue_label'.tr,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
+            style: TextStyle(
+              color: AppColors.textWhite,
+              fontSize: 16.rf(context),
               fontWeight: FontWeight.bold,
               letterSpacing: 0.3,
             ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 
 /// Fixed banner shown while a rest timer is counting down. Big and simple
 /// on purpose — the user glances at their phone between sets, not reads
@@ -24,25 +26,30 @@ class RestTimerBanner extends StatelessWidget {
     final progress = totalSeconds == 0 ? 0.0 : 1 - (secondsRemaining / totalSeconds);
 
     return Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(20, 14, 20, 14),
+      margin: EdgeInsetsDirectional.fromSTEB(
+          16.rs(context), 0, 16.rs(context), 12.rs(context)),
+      padding: EdgeInsetsDirectional.fromSTEB(
+          20.rs(context), 16.rs(context), 20.rs(context), 16.rs(context)),
       decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        border: Border(top: BorderSide(color: AppColors.darkBorder)),
+        color: AppColors.darkCardElevated,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+        boxShadow: AppColors.cardShadow,
       ),
       child: Row(
         children: [
           Text(
             'resting'.tr,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textGrey,
-              fontSize: 13,
+              fontSize: 13.rf(context),
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
                 value: progress.clamp(0, 1),
                 minHeight: 6,
@@ -58,22 +65,24 @@ class RestTimerBanner extends StatelessWidget {
               color: AppColors.textWhite,
               fontSize: 18,
               fontWeight: FontWeight.w800,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
+          AnimatedTap(
             onTap: onSkip,
+            borderRadius: BorderRadius.circular(12),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: AppColors.darkCard,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 'skip'.tr,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textWhite,
-                  fontSize: 12,
+                  fontSize: 12.rf(context),
                   fontWeight: FontWeight.w700,
                 ),
               ),

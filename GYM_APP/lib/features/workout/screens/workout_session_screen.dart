@@ -5,11 +5,15 @@ import 'package:get/get.dart';
 import 'package:gym_app/core/localization/locale_controller.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
 import 'package:gym_app/features/exercises/models/exercise.dart';
+import 'package:gym_app/features/workout/models/logged_set.dart';
 import 'package:gym_app/features/workout/models/workout_session.dart';
 import 'package:gym_app/features/workout/screens/workout_summary_screen.dart';
 import 'package:gym_app/features/workout/services/workout_service.dart';
 import 'package:gym_app/features/workout/widgets/exercise_logging_page.dart';
 import 'package:gym_app/features/workout/widgets/rest_timer_banner.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 
 const int _restDurationSeconds = 90;
 
@@ -20,10 +24,18 @@ class WorkoutSessionScreen extends StatefulWidget {
     super.key,
     required this.session,
     required this.exercisesById,
+    this.initialSetsBySessionExerciseId = const {},
   });
 
   final WorkoutSession session;
   final Map<int, Exercise> exercisesById;
+
+  /// Sets already logged before this screen was opened — non-empty only
+  /// when resuming an unfinished session (see ResumeWorkout). Seeds both
+  /// each exercise page's confirmed-sets list and the overview panel's
+  /// progress counts, so a resumed session doesn't look like it's
+  /// starting over from zero.
+  final Map<int, List<LoggedSet>> initialSetsBySessionExerciseId;
 
   @override
   State<WorkoutSessionScreen> createState() => _WorkoutSessionScreenState();
@@ -42,6 +54,14 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   // ExerciseLoggingPage's onSetLogged callback. Feeds the overview panel
   // so it can show progress without re-fetching anything.
   final Map<int, int> _setsLoggedByExercise = {};
+
+  @override
+  void initState() {
+    super.initState();
+    widget.initialSetsBySessionExerciseId.forEach((sessionExerciseId, sets) {
+      if (sets.isNotEmpty) _setsLoggedByExercise[sessionExerciseId] = sets.length;
+    });
+  }
 
   @override
   void dispose() {
@@ -81,11 +101,12 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => WorkoutSummaryScreen(summary: summary)),
       );
-    } catch (_) {
+    } catch (e) {
+      // Logged so the real cause shows in the device console instead of
+      // only ever surfacing as an unhelpful generic banner.
+      debugPrint('FinishWorkout failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('generic_error'.tr)),
-        );
+        AppNotification.showError(context, 'generic_error'.tr);
       }
     } finally {
       if (mounted) setState(() => _finishing = false);
@@ -113,16 +134,17 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       builder: (sheetContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 8),
+            padding: EdgeInsetsDirectional.fromSTEB(
+                20.rs(context), 16.rs(context), 20.rs(context), 8.rs(context)),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'session_overview'.tr,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textWhite,
-                    fontSize: 17,
+                    fontSize: 17.rf(context),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -138,16 +160,17 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                       final setsLogged = _setsLoggedByExercise[sessionExercise.id] ?? 0;
                       final isCurrent = index == _currentIndex;
 
-                      return GestureDetector(
+                      return AnimatedTap(
                         onTap: () {
                           Navigator.of(sheetContext).pop();
                           _jumpToExercise(index);
                         },
+                        borderRadius: BorderRadius.circular(16),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           decoration: BoxDecoration(
                             color: isCurrent ? AppColors.primary.withOpacity(0.12) : AppColors.darkCard,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isCurrent ? AppColors.primary : Colors.transparent,
                             ),
@@ -165,9 +188,9 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                               Expanded(
                                 child: Text(
                                   exercise?.localizedName(isArabic) ?? '',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.textWhite,
-                                    fontSize: 14,
+                                    fontSize: 14.rf(context),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -176,7 +199,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                                 setsLogged == 0
                                     ? 'not_started'.tr
                                     : '$setsLogged ${'sets_logged_suffix'.tr}',
-                                style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                                style: TextStyle(color: AppColors.textGrey, fontSize: 12.rf(context)),
                               ),
                             ],
                           ),
@@ -198,12 +221,8 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
-        title: Text('leave_workout_title'.tr, style: const TextStyle(color: AppColors.textWhite)),
-        content: Text(
-          'leave_workout_message'.tr,
-          style: const TextStyle(color: AppColors.textGrey),
-        ),
+        title: Text('leave_workout_title'.tr),
+        content: Text('leave_workout_message'.tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -236,16 +255,19 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(20, 12, 20, 8),
+                padding: EdgeInsetsDirectional.fromSTEB(
+                    20.rs(context), 12.rs(context), 20.rs(context), 8.rs(context)),
                 child: Row(
                   children: [
-                    GestureDetector(
+                    AnimatedTap(
                       onTap: () async {
                         if (await _confirmLeave() && mounted) Navigator.of(context).pop();
                       },
+                      borderRadius: BorderRadius.circular(14),
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: AppColors.darkCard,
                           borderRadius: BorderRadius.circular(14),
@@ -265,9 +287,9 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                                 children: [
                                   Text(
                                     '${'exercise_progress'.tr} ${_currentIndex + 1}/$total',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: AppColors.textGrey,
-                                      fontSize: 13,
+                                      fontSize: 13.rf(context),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -292,9 +314,9 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                             )
                           : Text(
                               'finish_workout'.tr,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.primary,
-                                fontSize: 14,
+                                fontSize: 14.rf(context),
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -322,6 +344,8 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                             sessionId: widget.session.id,
                             sessionExercise: sessionExercise,
                             exercise: exercise,
+                            initialSets:
+                                widget.initialSetsBySessionExerciseId[sessionExercise.id] ?? const [],
                             onSetLogged: (sessionExerciseId, totalConfirmedSets) {
                               setState(() {
                                 _setsLoggedByExercise[sessionExerciseId] = totalConfirmedSets;
@@ -332,37 +356,52 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                         },
                       ),
               ),
-              if (_restSecondsRemaining != null)
-                RestTimerBanner(
-                  secondsRemaining: _restSecondsRemaining!,
-                  totalSeconds: _restDurationSeconds,
-                  onSkip: _skipRest,
-                )
-              else if (total > 1)
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 16),
-                  child: Row(
-                    children: [
-                      _NavButton(
-                        icon: Icons.chevron_left_rounded,
-                        enabled: _currentIndex > 0,
-                        onTap: () => _pageController.previousPage(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut,
-                        ),
-                      ),
-                      const Spacer(),
-                      _NavButton(
-                        icon: Icons.chevron_right_rounded,
-                        enabled: _currentIndex < total - 1,
-                        onTap: () => _pageController.nextPage(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut,
-                        ),
-                      ),
-                    ],
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SizeTransition(
+                    sizeFactor: animation,
+                    axisAlignment: -1,
+                    child: child,
                   ),
                 ),
+                child: _restSecondsRemaining != null
+                    ? RestTimerBanner(
+                        key: const ValueKey('rest-timer'),
+                        secondsRemaining: _restSecondsRemaining!,
+                        totalSeconds: _restDurationSeconds,
+                        onSkip: _skipRest,
+                      )
+                    : (total > 1
+                        ? Padding(
+                            key: const ValueKey('nav-buttons'),
+                            padding: EdgeInsetsDirectional.fromSTEB(
+                                20.rs(context), 4.rs(context), 20.rs(context), 16.rs(context)),
+                            child: Row(
+                              children: [
+                                _NavButton(
+                                  icon: Icons.chevron_left_rounded,
+                                  enabled: _currentIndex > 0,
+                                  onTap: () => _pageController.previousPage(
+                                    duration: const Duration(milliseconds: 250),
+                                    curve: Curves.easeOut,
+                                  ),
+                                ),
+                                const Spacer(),
+                                _NavButton(
+                                  icon: Icons.chevron_right_rounded,
+                                  enabled: _currentIndex < total - 1,
+                                  onTap: () => _pageController.nextPage(
+                                    duration: const Duration(milliseconds: 250),
+                                    curve: Curves.easeOut,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink(key: ValueKey('nav-empty'))),
+              ),
             ],
           ),
         ),
@@ -380,14 +419,16 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AnimatedTap(
       onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 44,
         height: 44,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.darkSurface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.darkBorder),
         ),
         child: Icon(

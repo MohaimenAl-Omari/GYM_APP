@@ -8,6 +8,10 @@ import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/features/workout/screens/workout_session_screen.dart';
 import 'package:gym_app/features/workout/services/workout_service.dart';
 import 'package:gym_app/features/workout/services/repeat_last_workout.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 
 /// Pick muscle group(s) -> pick exercises -> start logging. Exercise
 /// selection order is preserved and sent to the backend as the session's
@@ -59,11 +63,16 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
     setState(() => _repeating = true);
     try {
       await RepeatLastWorkout.start(context, _lastWorkout!.sessionId);
-    } catch (_) {
+    } catch (e) {
+      // Always logged, even in release-adjacent debug runs, so a failure
+      // here is diagnosable from the device console instead of only ever
+      // showing as an unhelpful generic snackbar.
+      debugPrint('RepeatLastWorkout failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('generic_error'.tr)),
-        );
+        final message = (e is RepeatLastWorkoutException || e is ExerciseNotFoundException)
+            ? e.toString()
+            : 'generic_error'.tr;
+        AppNotification.showError(context, message);
       }
     } finally {
       if (mounted) setState(() => _repeating = false);
@@ -125,11 +134,12 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      // Logged so the real cause shows in the device console instead of
+      // only ever surfacing as an unhelpful generic banner.
+      debugPrint('StartWorkout failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('generic_error'.tr)),
-        );
+        AppNotification.showError(context, 'generic_error'.tr);
       }
     } finally {
       if (mounted) setState(() => _starting = false);
@@ -147,14 +157,17 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 8),
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  24.rs(context), 12.rs(context), 24.rs(context), 8.rs(context)),
               child: Row(
                 children: [
-                  GestureDetector(
+                  AnimatedTap(
                     onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppColors.darkCard,
                         borderRadius: BorderRadius.circular(14),
@@ -167,36 +180,31 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'home_start_workout'.tr,
-                    style: const TextStyle(
-                      color: AppColors.textWhite,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ],
               ),
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 32),
+                padding: EdgeInsetsDirectional.fromSTEB(
+                    24.rs(context), 8.rs(context), 24.rs(context), 32.rs(context)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (_lastWorkout != null) ...[
-                      _RepeatLastWorkoutBanner(
-                        preview: _lastWorkout!,
-                        loading: _repeating,
-                        onTap: _repeatLastWorkout,
+                      FadeSlideIn(
+                        child: _RepeatLastWorkoutBanner(
+                          preview: _lastWorkout!,
+                          loading: _repeating,
+                          onTap: _repeatLastWorkout,
+                        ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24.rs(context)),
                     ],
                     Text(
                       'choose_muscle_groups'.tr,
-                      style: const TextStyle(
-                        color: AppColors.textWhite,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: 12),
                     FutureBuilder<List<MuscleGroup>>(
@@ -214,25 +222,32 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
                         return Wrap(
                           spacing: 10,
                           runSpacing: 10,
-                          children: groups.map((group) {
+                          children: groups.asMap().entries.map((entry) {
+                            final group = entry.value;
                             final selected = _selectedGroupIds.contains(group.id);
-                            return GestureDetector(
-                              onTap: () => _toggleGroup(group),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: selected ? AppColors.primary : AppColors.darkSurface,
-                                  borderRadius: BorderRadius.circular(30),
-                                  border: Border.all(
-                                    color: selected ? AppColors.primary : AppColors.darkBorder,
+                            return FadeSlideIn(
+                              delay: Duration(milliseconds: 40 * entry.key),
+                              offset: const Offset(0, 0.15),
+                              child: AnimatedTap(
+                                onTap: () => _toggleGroup(group),
+                                borderRadius: BorderRadius.circular(30),
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: selected ? AppColors.primary : AppColors.darkSurface,
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color: selected ? AppColors.primary : AppColors.darkBorder,
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  group.localizedName(isArabic),
-                                  style: TextStyle(
-                                    color: selected ? Colors.white : AppColors.textGrey,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                  child: Text(
+                                    group.localizedName(isArabic),
+                                    style: TextStyle(
+                                      color: selected ? AppColors.textWhite : AppColors.textGrey,
+                                      fontSize: 13.rf(context),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -241,15 +256,11 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
                         );
                       },
                     ),
-                    const SizedBox(height: 28),
+                    SizedBox(height: 28.rs(context)),
                     if (_selectedGroupIds.isNotEmpty) ...[
                       Text(
                         'choose_exercises'.tr,
-                        style: const TextStyle(
-                          color: AppColors.textWhite,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 12),
                       ..._selectedGroupIds.map((groupId) {
@@ -265,41 +276,46 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
                         }
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: exercises.map((exercise) {
+                          children: exercises.asMap().entries.map((entry) {
+                            final exercise = entry.value;
                             final selected = _selectedExerciseIds.contains(exercise.id);
-                            return GestureDetector(
-                              onTap: () => _toggleExercise(exercise.id),
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.darkSurface,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: selected ? AppColors.primary : AppColors.darkBorder,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      selected
-                                          ? Icons.check_circle_rounded
-                                          : Icons.circle_outlined,
-                                      color: selected ? AppColors.primary : AppColors.textGrey,
-                                      size: 22,
+                            return FadeSlideIn(
+                              delay: Duration(milliseconds: 40 * entry.key),
+                              child: AnimatedTap(
+                                onTap: () => _toggleExercise(exercise.id),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.darkSurface,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: selected ? AppColors.primary : AppColors.darkBorder,
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        exercise.localizedName(isArabic),
-                                        style: const TextStyle(
-                                          color: AppColors.textWhite,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        selected
+                                            ? Icons.check_circle_rounded
+                                            : Icons.circle_outlined,
+                                        color: selected ? AppColors.primary : AppColors.textGrey,
+                                        size: 22,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          exercise.localizedName(isArabic),
+                                          style: TextStyle(
+                                            color: AppColors.textWhite,
+                                            fontSize: 14.rf(context),
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -314,7 +330,8 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
             SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 12),
+                padding: EdgeInsetsDirectional.fromSTEB(
+                    24.rs(context), 8.rs(context), 24.rs(context), 12.rs(context)),
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton(
@@ -331,15 +348,15 @@ class _StartWorkoutScreenState extends State<StartWorkoutScreen> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textWhite),
                           )
                         : Text(
                             _selectedExerciseIds.isEmpty
                                 ? 'home_start_workout'.tr
                                 : '${'home_start_workout'.tr} (${_selectedExerciseIds.length})',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
+                            style: TextStyle(
+                              color: AppColors.textWhite,
+                              fontSize: 15.rf(context),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -370,15 +387,17 @@ class _RepeatLastWorkoutBanner extends StatelessWidget {
     final isArabic = Get.find<LocaleController>().isArabic;
     final label = preview.label(isArabic);
 
-    return GestureDetector(
+    return AnimatedTap(
       onTap: loading ? null : onTap,
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: AppColors.darkSurface,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+          boxShadow: AppColors.softShadow,
         ),
         child: Row(
           children: [
@@ -398,9 +417,9 @@ class _RepeatLastWorkoutBanner extends StatelessWidget {
                 children: [
                   Text(
                     'repeat_last_workout'.tr,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textWhite,
-                      fontSize: 14,
+                      fontSize: 14.rf(context),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -410,7 +429,7 @@ class _RepeatLastWorkoutBanner extends StatelessWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                      style: TextStyle(color: AppColors.textGrey, fontSize: 12.rf(context)),
                     ),
                   ],
                 ],

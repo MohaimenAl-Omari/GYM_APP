@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/core/services/auth_service.dart';
 import 'package:gym_app/features/auth/models/login_result.dart';
 import 'package:gym_app/features/home/screens/home_screen.dart';
 import 'package:gym_app/features/profile/screens/complete_profile_screen.dart';
 import 'package:gym_app/shared/widgets/language_switcher.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -108,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    AppNotification.showError(context, text);
   }
 
   /// Manual phone sign-up is always a brand new account, so it always
@@ -183,244 +188,261 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // ── Content ──────────────────────────────────────────
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 26),
+              padding: EdgeInsets.symmetric(horizontal: 26.rs(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16.rs(context)),
 
                   // Back button + language switcher
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.darkCard,
-                            borderRadius: BorderRadius.circular(13),
-                            border: Border.all(color: AppColors.darkBorder),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 17,
-                            color: AppColors.textWhite,
+                  FadeSlideIn(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        AnimatedTap(
+                          onTap: () => Navigator.pop(context),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.darkCard,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.darkBorder),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 17,
+                              color: AppColors.textWhite,
+                            ),
                           ),
                         ),
-                      ),
-                      const LanguageSwitcher(),
-                    ],
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Header
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Colors.white, Color(0xFFCCCCCC)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ).createShader(bounds),
-                    child: Text(
-                      'create_account'.tr,
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'register_subtitle'.tr,
-                    style: const TextStyle(fontSize: 14, color: AppColors.textGrey),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Form card ────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      color: AppColors.darkSurface,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.darkBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
+                        const LanguageSwitcher(),
                       ],
                     ),
+                  ),
+
+                  SizedBox(height: 24.rs(context)),
+
+                  // Header
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 40),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel('full_name'.tr),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          hint: 'John Doe',
-                          icon: Icons.person_outline_rounded,
-                          controller: _nameController,
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        _buildLabel('username'.tr),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          hint: 'johndoe',
-                          icon: Icons.alternate_email_rounded,
-                          controller: _usernameController,
-                          keyboardType: TextInputType.visiblePassword,
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        _buildLabel('phone_number'.tr),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          hint: '07xxxxxxxxx',
-                          icon: Icons.phone,
-                          controller: _emailController,
-                          keyboardType: TextInputType.phone,
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        _buildLabel('password'.tr),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          hint: '••••••••',
-                          icon: Icons.lock_outline_rounded,
-                          controller: _passwordController,
-                          obscure: _obscurePassword,
-                          suffix: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: AppColors.textGrey,
-                              size: 20,
-                            ),
-                            onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword),
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [AppColors.textWhite, Color(0xFFCCCCCC)],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ).createShader(bounds),
+                          child: Text(
+                            'create_account'.tr,
+                            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  color: AppColors.textWhite,
+                                  letterSpacing: -0.5,
+                                ),
                           ),
                         ),
-
-                        const SizedBox(height: 18),
-
-                        _buildLabel('confirm_password'.tr),
                         const SizedBox(height: 8),
-                        _buildTextField(
-                          hint: '••••••••',
-                          icon: Icons.lock_outline_rounded,
-                          controller: _confirmController,
-                          obscure: _obscureConfirm,
-                          suffix: IconButton(
-                            icon: Icon(
-                              _obscureConfirm
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: AppColors.textGrey,
-                              size: 20,
-                            ),
-                            onPressed: () => setState(
-                                () => _obscureConfirm = !_obscureConfirm),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        _buildPrimaryButton(
-                          label: _isRegisterLoading
-                              ? 'creating_account'.tr
-                              : 'create_account'.tr,
-                          onTap: _isRegisterLoading ? () {} : _handleRegister,
+                        Text(
+                          'register_subtitle'.tr,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textGrey,
+                              ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 28),
+                  SizedBox(height: 24.rs(context)),
+
+                  // ── Form card ────────────────────────────────
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 90),
+                    child: AppCard(
+                      padding: const EdgeInsets.all(20),
+                      color: AppColors.darkSurface,
+                      borderColor: AppColors.darkBorder,
+                      borderRadius: 24,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('full_name'.tr),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            hint: 'John Doe',
+                            icon: Icons.person_outline_rounded,
+                            controller: _nameController,
+                          ),
+
+                          SizedBox(height: 16.rs(context)),
+
+                          _buildLabel('username'.tr),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            hint: 'johndoe',
+                            icon: Icons.alternate_email_rounded,
+                            controller: _usernameController,
+                            keyboardType: TextInputType.visiblePassword,
+                          ),
+
+                          SizedBox(height: 16.rs(context)),
+
+                          _buildLabel('phone_number'.tr),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            hint: '07xxxxxxxxx',
+                            icon: Icons.phone,
+                            controller: _emailController,
+                            keyboardType: TextInputType.phone,
+                          ),
+
+                          SizedBox(height: 16.rs(context)),
+
+                          _buildLabel('password'.tr),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            hint: '••••••••',
+                            icon: Icons.lock_outline_rounded,
+                            controller: _passwordController,
+                            obscure: _obscurePassword,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: AppColors.textGrey,
+                                size: 20,
+                              ),
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
+                            ),
+                          ),
+
+                          SizedBox(height: 16.rs(context)),
+
+                          _buildLabel('confirm_password'.tr),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            hint: '••••••••',
+                            icon: Icons.lock_outline_rounded,
+                            controller: _confirmController,
+                            obscure: _obscureConfirm,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _obscureConfirm
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: AppColors.textGrey,
+                                size: 20,
+                              ),
+                              onPressed: () => setState(
+                                  () => _obscureConfirm = !_obscureConfirm),
+                            ),
+                          ),
+
+                          SizedBox(height: 24.rs(context)),
+
+                          _buildPrimaryButton(
+                            label: _isRegisterLoading
+                                ? 'creating_account'.tr
+                                : 'create_account'.tr,
+                            onTap: _isRegisterLoading ? () {} : _handleRegister,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 28.rs(context)),
 
                   // ── Divider ──────────────────────────────────
-                  Row(
-                    children: [
-                      const Expanded(
-                          child: Divider(color: AppColors.darkBorder)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Text(
-                          'or_sign_up_with'.tr,
-                          style: TextStyle(
-                            color: AppColors.textGrey.withOpacity(0.8),
-                            fontSize: 12,
-                            letterSpacing: 0.3,
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 150),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                            child: Divider(color: AppColors.darkBorder)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'or_sign_up_with'.tr,
+                            style: TextStyle(
+                              color: AppColors.textGrey.withOpacity(0.8),
+                              fontSize: 12.rf(context),
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
-                      ),
-                      const Expanded(
-                          child: Divider(color: AppColors.darkBorder)),
-                    ],
+                        const Expanded(
+                            child: Divider(color: AppColors.darkBorder)),
+                      ],
+                    ),
                   ),
 
-                  const SizedBox(height: 22),
+                  SizedBox(height: 20.rs(context)),
 
                   // ── Social buttons ───────────────────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSocialButton(
-                          label: _isGoogleLoading ? 'loading'.tr : 'google'.tr,
-                          icon: Icons.g_mobiledata,
-                          iconColor: const Color(0xFFEA4335),
-                          onTap: _isGoogleLoading ? null : _handleGoogleSignUp,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildSocialButton(
-                          label: _isAppleLoading ? 'loading'.tr : 'apple'.tr,
-                          icon: Icons.apple,
-                          iconColor: Colors.white,
-                          onTap: _isAppleLoading ? null : _handleAppleSignUp,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Login link
-                  Center(
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 190),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          'already_have_account'.tr,
-                          style:
-                              const TextStyle(color: AppColors.textGrey, fontSize: 14),
+                        Expanded(
+                          child: _buildSocialButton(
+                            label: _isGoogleLoading ? 'loading'.tr : 'google'.tr,
+                            icon: Icons.g_mobiledata,
+                            iconColor: const Color(0xFFEA4335),
+                            onTap: _isGoogleLoading ? null : _handleGoogleSignUp,
+                          ),
                         ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Text(
-                            'login'.tr,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildSocialButton(
+                            label: _isAppleLoading ? 'loading'.tr : 'apple'.tr,
+                            icon: Icons.apple,
+                            iconColor: AppColors.textWhite,
+                            onTap: _isAppleLoading ? null : _handleAppleSignUp,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  SizedBox(height: 32.rs(context)),
+
+                  // Login link
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 230),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'already_have_account'.tr,
+                            style: TextStyle(
+                                color: AppColors.textGrey, fontSize: 14.rf(context)),
+                          ),
+                          AnimatedTap(
+                            onTap: () => Navigator.pop(context),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              child: Text(
+                                'login'.tr,
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.rf(context),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 28.rs(context)),
                 ],
               ),
             ),
@@ -433,8 +455,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 13,
+      style: TextStyle(
+        fontSize: 13.rf(context),
         fontWeight: FontWeight.w600,
         color: AppColors.textLightGrey,
         letterSpacing: 0.2,
@@ -460,10 +482,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         controller: controller,
         obscureText: obscure,
         keyboardType: keyboardType,
-        style: const TextStyle(color: AppColors.textWhite, fontSize: 15),
+        style: TextStyle(color: AppColors.textWhite, fontSize: 15.rf(context)),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textGrey, fontSize: 14),
+          hintStyle: TextStyle(color: AppColors.textGrey, fontSize: 14.rf(context)),
           prefixIcon: Icon(icon, color: AppColors.textGrey, size: 20),
           suffixIcon: suffix,
           border: InputBorder.none,
@@ -476,32 +498,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildPrimaryButton(
       {required String label, required VoidCallback onTap}) {
-    return GestureDetector(
+    return AnimatedTap(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         width: double.infinity,
         height: 54,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryDark],
+            colors: AppColors.primaryGradient,
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.primaryGlow,
         ),
         child: Center(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
+            style: TextStyle(
+              color: AppColors.textWhite,
+              fontSize: 16.rf(context),
               fontWeight: FontWeight.bold,
               letterSpacing: 0.3,
             ),
@@ -517,13 +534,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required Color iconColor,
     VoidCallback? onTap,
   }) {
-    return GestureDetector(
+    return AnimatedTap(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         height: 52,
         decoration: BoxDecoration(
           color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.darkBorder),
         ),
         child: Row(
@@ -533,8 +551,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 14,
+              style: TextStyle(
+                fontSize: 14.rf(context),
                 fontWeight: FontWeight.w600,
                 color: AppColors.textWhite,
               ),

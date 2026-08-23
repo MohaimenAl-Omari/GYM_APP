@@ -4,14 +4,12 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/auth/models/login_result.dart';
 import '../constant/const.dart';
+import 'api_client.dart';
+import 'secure_storage_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: baseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 10),
-  ));
+  final _dio = ApiClient.instance.dio;
   bool _googleSignInInitialized = false;
 
   Future<void> _ensureGoogleSignInInitialized() async {
@@ -49,8 +47,8 @@ class AuthService {
       final String token = response.data['token'];
       final Map<String, dynamic> user = Map<String, dynamic>.from(response.data['user']);
       final bool profileComplete = _isProfileComplete(user);
+      await SecureStorageService.saveToken(token);
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
       await prefs.setString('user_name', user['name']?.toString() ?? '');
       await prefs.setString('user_phone', user['phone_number']?.toString() ?? '');
       await prefs.setBool('profile_complete', profileComplete);
@@ -89,8 +87,8 @@ class AuthService {
       final String token = response.data['token'];
       final Map<String, dynamic> user =
           Map<String, dynamic>.from(response.data['user']);
+      await SecureStorageService.saveToken(token);
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
       await prefs.setString('user_name', user['name']?.toString() ?? '');
       await prefs.setString('user_phone', user['phone_number']?.toString() ?? '');
       // Brand new account — profile fields are always empty at this point.
@@ -153,8 +151,8 @@ class AuthService {
           Map<String, dynamic>.from(response.data['user']);
       final bool profileComplete = _isProfileComplete(user);
 
+      await SecureStorageService.saveToken(token);
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
       await prefs.setString('user_name', user['name']?.toString() ?? '');
       await prefs.setBool('profile_complete', profileComplete);
       return LoginResult(profileComplete: profileComplete);
@@ -208,8 +206,8 @@ class AuthService {
           Map<String, dynamic>.from(response.data['user']);
       final bool profileComplete = _isProfileComplete(user);
 
+      await SecureStorageService.saveToken(token);
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
       await prefs.setString('user_name', user['name']?.toString() ?? '');
       await prefs.setBool('profile_complete', profileComplete);
       return LoginResult(profileComplete: profileComplete);
@@ -238,33 +236,27 @@ class AuthService {
   }
 
   Future<void> _clearSession() async {
+    await SecureStorageService.deleteToken();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
     await prefs.remove('user_name');
     await prefs.remove('user_phone');
     await prefs.remove('profile_complete');
   }
 
   Future<bool> isLoggedIn() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('auth_token');
+    final token = await SecureStorageService.getToken();
     return token != null;
   }
 
-  Future<String?> getToken() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
+  Future<String?> getToken() => SecureStorageService.getToken();
 
   /// Asks the backend who the current token belongs to. Used on app
   /// startup to make sure a saved token hasn't been revoked/expired, and
   /// to refresh the cached profile-complete flag from the server instead
-  /// of trusting a possibly-stale local copy.
-  Future<Map<String, dynamic>> fetchCurrentUser(String token) async {
-    final Response response = await _dio.get(
-      '/user/me',
-      options: Options(headers: {'Authorization': 'Bearer $token'}),
-    );
+  /// of trusting a possibly-stale local copy. The token itself is attached
+  /// automatically by ApiClient's interceptor — nothing to pass here.
+  Future<Map<String, dynamic>> fetchCurrentUser() async {
+    final Response response = await _dio.get('/user/me');
     return Map<String, dynamic>.from(response.data['user']);
   }
 
@@ -274,12 +266,12 @@ class AuthService {
   /// what lets a user close the app and reopen it straight into Home
   /// instead of having to log in again.
   Future<AuthStatus> checkSession() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('auth_token');
+    final token = await SecureStorageService.getToken();
     if (token == null) return AuthStatus.loggedOut;
 
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     try {
-      final user = await fetchCurrentUser(token);
+      final user = await fetchCurrentUser();
       final bool profileComplete = _isProfileComplete(user);
       await prefs.setString('user_name', user['name']?.toString() ?? '');
       await prefs.setBool('profile_complete', profileComplete);

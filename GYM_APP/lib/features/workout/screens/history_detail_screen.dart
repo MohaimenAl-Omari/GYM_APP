@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/localization/locale_controller.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/core/theme/responsive.dart';
+import 'package:gym_app/features/workout/models/logged_set.dart';
 import 'package:gym_app/features/workout/models/workout_history.dart';
+import 'package:gym_app/features/workout/screens/history_screen.dart' show formatDuration;
 import 'package:gym_app/features/workout/services/workout_service.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 
 /// Full exercise/set breakdown for one past session, opened from a
-/// History list row.
+/// History list row. Also where a session can be renamed (notes) or
+/// deleted — both act on the same session id the list already knows,
+/// so on delete we just pop back with `true` and let History refresh.
 class HistoryDetailScreen extends StatefulWidget {
   const HistoryDetailScreen({super.key, required this.sessionId});
 
@@ -19,11 +28,175 @@ class HistoryDetailScreen extends StatefulWidget {
 class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
   final WorkoutService _service = WorkoutService();
   late Future<WorkoutHistoryDetail> _future;
+  bool _deleting = false;
 
   @override
   void initState() {
     super.initState();
     _future = _service.fetchSessionDetail(widget.sessionId);
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('delete_session'.tr),
+        content: Text('delete_session_confirm'.tr),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('delete'.tr, style: const TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || _deleting) return;
+
+    setState(() => _deleting = true);
+    try {
+      await _service.deleteSession(widget.sessionId);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _deleting = false);
+        AppNotification.showError(context, 'generic_error'.tr);
+      }
+    }
+  }
+
+  Future<void> _editNotes(String? currentNotes) async {
+    final controller = TextEditingController(text: currentNotes ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('edit_notes'.tr),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+          style: const TextStyle(color: AppColors.textWhite),
+          decoration: InputDecoration(
+            hintText: 'notes_hint'.tr,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: Text('save'.tr),
+          ),
+        ],
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    try {
+      await _service.updateSessionNotes(widget.sessionId, result.trim().isEmpty ? null : result.trim());
+      if (!mounted) return;
+      setState(() {
+        _future = _service.fetchSessionDetail(widget.sessionId);
+      });
+    } catch (_) {
+      if (mounted) {
+        AppNotification.showError(context, 'generic_error'.tr);
+      }
+    }
+  }
+
+  /// Fixes a typo'd historical set — e.g. logged 15kg instead of 51kg.
+  /// Available on any set since editing doesn't disturb ordering.
+  Future<void> _editSet(HistoryExercise exercise, HistorySet set) async {
+    final repsController = TextEditingController(text: set.reps.toString());
+    final weightController = TextEditingController(text: set.weight.toString());
+
+    final saveTapped = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('edit_set_title'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: repsController,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: AppColors.textWhite),
+              decoration: InputDecoration(labelText: 'reps_label'.tr),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: weightController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: AppColors.textWhite),
+              decoration: InputDecoration(labelText: '${'weight'.tr} (${set.weightUnit})'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text('cancel'.tr)),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text('save'.tr)),
+        ],
+      ),
+    );
+    if (saveTapped != true || !mounted) return;
+
+    final reps = int.tryParse(repsController.text);
+    final weight = double.tryParse(weightController.text);
+    if (reps == null || weight == null) return;
+
+    try {
+      await _service.updateSet(
+        widget.sessionId,
+        set.id,
+        LoggedSet(
+          id: set.id,
+          sessionExerciseId: exercise.sessionExerciseId,
+          setNumber: set.setNumber,
+          reps: reps,
+          weight: weight,
+          weightUnit: set.weightUnit,
+          restTime: set.restTime,
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _future = _service.fetchSessionDetail(widget.sessionId));
+    } catch (_) {
+      if (mounted) AppNotification.showError(context, 'generic_error'.tr);
+    }
+  }
+
+  Future<void> _deleteSet(HistorySet set) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('delete_set_title'.tr),
+        content: Text('delete_set_confirm'.tr),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text('cancel'.tr)),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('delete'.tr, style: const TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _service.deleteSet(widget.sessionId, set.id);
+      if (!mounted) return;
+      setState(() => _future = _service.fetchSessionDetail(widget.sessionId));
+    } catch (_) {
+      if (mounted) AppNotification.showError(context, 'generic_error'.tr);
+    }
   }
 
   @override
@@ -37,8 +210,17 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsetsDirectional.fromSTEB(24.rs(context), 12.rs(context), 24.rs(context), 0),
+                    child: _BackButton(onTap: () => Navigator.of(context).pop()),
+                  ),
+                  const Expanded(
+                    child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                  ),
+                ],
               );
             }
 
@@ -46,12 +228,15 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _BackButton(onTap: () => Navigator.of(context).pop()),
+                  Padding(
+                    padding: EdgeInsetsDirectional.fromSTEB(24.rs(context), 12.rs(context), 24.rs(context), 0),
+                    child: _BackButton(onTap: () => Navigator.of(context).pop()),
+                  ),
                   Expanded(
                     child: Center(
                       child: Text(
                         'history_load_error'.tr,
-                        style: const TextStyle(color: AppColors.textGrey, fontSize: 14),
+                        style: TextStyle(color: AppColors.textGrey, fontSize: 14.rf(context)),
                       ),
                     ),
                   ),
@@ -62,19 +247,66 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
             final detail = snapshot.data!;
 
             return SingleChildScrollView(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 32),
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  24.rs(context), 12.rs(context), 24.rs(context), 32.rs(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _BackButton(onTap: () => Navigator.of(context).pop()),
-                  const SizedBox(height: 16),
-                  Text(
-                    detail.date,
-                    style: const TextStyle(
-                      color: AppColors.textWhite,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  Row(
+                    children: [
+                      _BackButton(onTap: () => Navigator.of(context).pop()),
+                      const Spacer(),
+                      AnimatedTap(
+                        onTap: _deleting ? null : _confirmDelete,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.darkCard,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.darkBorder),
+                          ),
+                          child: _deleting
+                              ? const Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error),
+                                )
+                              : const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 19),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16.rs(context)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          detail.date,
+                          style: TextStyle(
+                            color: AppColors.textWhite,
+                            fontSize: 22.rf(context),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (detail.durationSeconds != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.timer_outlined, color: AppColors.textGrey, size: 15),
+                              const SizedBox(width: 4),
+                              Text(
+                                formatDuration(detail.durationSeconds!),
+                                style: TextStyle(
+                                    color: AppColors.textGrey, fontSize: 13.rf(context), fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                   if (detail.muscleGroups.isNotEmpty) ...[
                     const SizedBox(height: 10),
@@ -86,58 +318,79 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                           .toList(),
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatTile(
-                          value: '${detail.exercises.length}',
-                          label: 'history_exercises'.tr,
+                  SizedBox(height: 20.rs(context)),
+                  FadeSlideIn(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _StatTile(
+                            value: '${detail.exercises.length}',
+                            label: 'history_exercises'.tr,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatTile(value: '${detail.totalSets}', label: 'total_sets'.tr),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatTile(
-                          value: detail.totalVolume.toStringAsFixed(0),
-                          label: 'total_volume'.tr,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _StatTile(value: '${detail.totalSets}', label: 'total_sets'.tr),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _StatTile(
+                            value: detail.totalVolume.toStringAsFixed(0),
+                            label: 'total_volume'.tr,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  if ((detail.notes ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.darkSurface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.darkBorder),
-                      ),
-                      child: Text(
-                        detail.notes!,
-                        style: const TextStyle(color: AppColors.textLightGrey, fontSize: 13, height: 1.4),
+                  SizedBox(height: 20.rs(context)),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 60),
+                    child: AppCard(
+                      onTap: () => _editNotes(detail.notes),
+                      color: AppColors.darkSurface,
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              (detail.notes ?? '').isNotEmpty ? detail.notes! : 'no_notes'.tr,
+                              style: TextStyle(
+                                color: (detail.notes ?? '').isNotEmpty
+                                    ? AppColors.textLightGrey
+                                    : AppColors.textGrey,
+                                fontSize: 13.rf(context),
+                                height: 1.4,
+                                fontStyle: (detail.notes ?? '').isNotEmpty
+                                    ? FontStyle.normal
+                                    : FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.edit_outlined, color: AppColors.textGrey, size: 16),
+                        ],
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 24),
+                  ),
+                  SizedBox(height: 24.rs(context)),
                   Text(
                     'history_exercises'.tr,
-                    style: const TextStyle(
-                      color: AppColors.textWhite,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 12),
-                  ...detail.exercises.map(
-                    (exercise) => Padding(
+                  ...detail.exercises.asMap().entries.map(
+                    (entry) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _ExerciseCard(exercise: exercise, isArabic: isArabic),
+                      child: FadeSlideIn(
+                        delay: Duration(milliseconds: (50 * entry.key).clamp(0, 400)),
+                        child: _ExerciseCard(
+                          exercise: entry.value,
+                          isArabic: isArabic,
+                          onEditSet: (set) => _editSet(entry.value, set),
+                          onDeleteSet: _deleteSet,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -157,20 +410,18 @@ class _BackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 0),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: AppColors.darkCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.darkBorder),
-          ),
-          child: const Icon(Icons.arrow_back_rounded, color: AppColors.textGrey, size: 19),
+    return AnimatedTap(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppColors.darkCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.darkBorder),
         ),
+        child: const Icon(Icons.arrow_back_rounded, color: AppColors.textGrey, size: 19),
       ),
     );
   }
@@ -184,21 +435,17 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+    return AppCard(
+      color: AppColors.darkSurface,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       child: Column(
         children: [
           Text(
             value,
-            style: const TextStyle(
-                color: AppColors.textWhite, fontSize: 20, fontWeight: FontWeight.w800),
+            style: TextStyle(
+                color: AppColors.textWhite, fontSize: 20.rf(context), fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,
@@ -232,20 +479,23 @@ class _Chip extends StatelessWidget {
 }
 
 class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.exercise, required this.isArabic});
+  const _ExerciseCard({
+    required this.exercise,
+    required this.isArabic,
+    required this.onEditSet,
+    required this.onDeleteSet,
+  });
 
   final HistoryExercise exercise;
   final bool isArabic;
+  final void Function(HistorySet set) onEditSet;
+  final void Function(HistorySet set) onDeleteSet;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+    return AppCard(
+      color: AppColors.darkSurface,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -267,9 +517,9 @@ class _ExerciseCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   exercise.localizedName(isArabic),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textWhite,
-                    fontSize: 14,
+                    fontSize: 14.rf(context),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -279,25 +529,36 @@ class _ExerciseCard extends StatelessWidget {
           const SizedBox(height: 10),
           ...exercise.sets.map(
             (set) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
                 children: [
                   SizedBox(
                     width: 56,
                     child: Text(
                       '${'set_label'.tr} ${set.setNumber}',
-                      style: const TextStyle(color: AppColors.textLightGrey, fontSize: 13),
+                      style: TextStyle(color: AppColors.textLightGrey, fontSize: 13.rf(context)),
                     ),
                   ),
                   Text(
                     '${set.reps} ${'reps_label'.tr}',
-                    style: const TextStyle(
-                        color: AppColors.textWhite, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: AppColors.textWhite, fontSize: 13.rf(context), fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     '${set.weight.toStringAsFixed(set.weight % 1 == 0 ? 0 : 1)} ${set.weightUnit}',
-                    style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+                    style: TextStyle(color: AppColors.textGrey, fontSize: 13.rf(context)),
+                  ),
+                  const Spacer(),
+                  _HistorySetIconButton(
+                    icon: Icons.edit_outlined,
+                    color: AppColors.textGrey,
+                    onTap: () => onEditSet(set),
+                  ),
+                  _HistorySetIconButton(
+                    icon: Icons.delete_outline_rounded,
+                    color: AppColors.error,
+                    onTap: () => onDeleteSet(set),
                   ),
                 ],
               ),
@@ -314,6 +575,28 @@ class _ExerciseCard extends StatelessWidget {
       height: 48,
       color: AppColors.darkCard,
       child: const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 20),
+    );
+  }
+}
+
+/// 48x48dp tap target (see gym-app-mobile-ui-ux skill) around a small
+/// inline icon — keeps the visual footprint compact for a dense set row
+/// while the actual hit area still meets the minimum comfortable size.
+class _HistorySetIconButton extends StatelessWidget {
+  const _HistorySetIconButton({required this.icon, required this.color, required this.onTap});
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, color: color, size: 16),
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      padding: EdgeInsets.zero,
+      splashRadius: 22,
     );
   }
 }

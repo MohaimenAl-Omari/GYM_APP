@@ -6,6 +6,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MuscleGroupController;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\WorkoutSessionController;
+use App\Http\Controllers\WeightLogController;
 
 Route::prefix('api_v1')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -27,16 +28,24 @@ Route::prefix('api_v1')->group(function () {
 
         Route::get('/exercises/{exercise}', [ExerciseController::class, 'show']);
         Route::get('/exercises/{exercise}/last-performance', [ExerciseController::class, 'lastPerformance']);
+        Route::get('/exercises/{exercise}/progress', [ExerciseController::class, 'progress']);
 
         Route::prefix('workout-sessions')->group(function () {
             Route::get('/', [WorkoutSessionController::class, 'index']);
             Route::get('/{workoutSession}', [WorkoutSessionController::class, 'show']);
             Route::post('/', [WorkoutSessionController::class, 'store']);
+            Route::put('/{workoutSession}', [WorkoutSessionController::class, 'update']);
+            Route::delete('/{workoutSession}', [WorkoutSessionController::class, 'destroy']);
             Route::post('/{workoutSession}/exercises', [WorkoutSessionController::class, 'addExercise']);
             Route::post('/{workoutSession}/sets', [WorkoutSessionController::class, 'storeSet']);
             Route::put('/{workoutSession}/sets/{set}', [WorkoutSessionController::class, 'updateSet']);
             Route::delete('/{workoutSession}/sets/{set}', [WorkoutSessionController::class, 'destroySet']);
             Route::put('/{workoutSession}/finish', [WorkoutSessionController::class, 'finish']);
+        });
+
+        Route::prefix('weight-logs')->group(function () {
+            Route::get('/', [WeightLogController::class, 'index']);
+            Route::post('/', [WeightLogController::class, 'store']);
         });
     });
 });

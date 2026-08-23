@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 
 /// Compact -/value/+ control used for reps and weight during logging.
 /// Tapping the value itself opens a keyboard for a precise entry — the
@@ -27,17 +29,17 @@ class StepperField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(label, style: const TextStyle(color: AppColors.textGrey, fontSize: 11)),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             _roundButton(Icons.remove_rounded, onDecrement),
-            GestureDetector(
+            AnimatedTap(
               onTap: onTapValue,
               child: Container(
                 constraints: const BoxConstraints(minWidth: 56),
                 alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: EdgeInsets.symmetric(horizontal: 6.rs(context)),
                 child: Text(
                   value,
                   style: const TextStyle(
@@ -56,14 +58,16 @@ class StepperField extends StatelessWidget {
   }
 
   Widget _roundButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
+    return AnimatedTap(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 32,
-        height: 32,
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: AppColors.textWhite, size: 16),
       ),

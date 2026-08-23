@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/localization/locale_controller.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/exercises/models/exercise.dart';
 import 'package:gym_app/features/exercises/models/exercise_last_performance.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
+import 'package:gym_app/shared/widgets/skeleton_loader.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
   const ExerciseDetailScreen({super.key, required this.exercise});
@@ -34,20 +39,22 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       backgroundColor: AppColors.darkBackground,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 32),
+          padding: EdgeInsetsDirectional.fromSTEB(
+              24.rs(context), 12.rs(context), 24.rs(context), 32.rs(context)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  GestureDetector(
+                  AnimatedTap(
                     onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(16),
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
                         color: AppColors.darkCard,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.darkBorder),
                       ),
                       child: const Icon(Icons.arrow_back_rounded,
@@ -56,75 +63,63 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: exercise.demoUrl != null
-                    ? Image.network(
-                        exercise.demoUrl!,
-                        width: double.infinity,
-                        height: 200,
-                        fit: BoxFit.cover,
-                        // Image.network plays animated GIFs natively, so a
-                        // gifUrl demo loops here just like a static photo
-                        // would render.
-                        errorBuilder: (_, __, ___) => _placeholder(),
-                      )
-                    : _placeholder(),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                exercise.localizedName(isArabic),
-                style: const TextStyle(
-                  color: AppColors.textWhite,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+              SizedBox(height: 16.rs(context)),
+              FadeSlideIn(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: exercise.demoUrl != null
+                      ? Image.network(
+                          exercise.demoUrl!,
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          // Image.network plays animated GIFs natively, so a
+                          // gifUrl demo loops here just like a static photo
+                          // would render.
+                          errorBuilder: (_, __, ___) => _placeholder(),
+                        )
+                      : _placeholder(),
                 ),
               ),
+              SizedBox(height: 20.rs(context)),
+              Text(
+                exercise.localizedName(isArabic),
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
               if ((exercise.localizedDescription(isArabic) ?? '').isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   exercise.localizedDescription(isArabic)!,
-                  style: const TextStyle(color: AppColors.textGrey, fontSize: 14, height: 1.5),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textGrey,
+                        height: 1.5,
+                      ),
                 ),
               ],
               if (exercise.targetMuscle != null || exercise.secondaryMuscles.isNotEmpty) ...[
-                const SizedBox(height: 20),
+                SizedBox(height: 20.rs(context)),
                 _MuscleChipsSection(exercise: exercise),
               ],
               if (exercise.instructions.isNotEmpty) ...[
-                const SizedBox(height: 24),
+                SizedBox(height: 24.rs(context)),
                 Text(
                   'how_to'.tr,
-                  style: const TextStyle(
-                    color: AppColors.textWhite,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
                 _InstructionsCard(instructions: exercise.instructions),
               ],
-              const SizedBox(height: 24),
+              SizedBox(height: 24.rs(context)),
               Text(
                 'last_performance'.tr,
-                style: const TextStyle(
-                  color: AppColors.textWhite,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
               FutureBuilder<ExerciseLastPerformance>(
                 future: _future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
-                      ),
-                    );
+                    return const SkeletonCard(height: 84, margin: EdgeInsets.zero);
                   }
                   final performance = snapshot.data ?? ExerciseLastPerformance.empty;
                   if (!performance.hasHistory) {
@@ -158,22 +153,17 @@ class _LastPerformanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = performance.sessionDate;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+    return AppCard(
+      borderRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (date != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 12),
               child: Text(
                 '${'last_time_on'.tr} ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-                style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
           ...performance.sets.map(
@@ -185,19 +175,23 @@ class _LastPerformanceCard extends StatelessWidget {
                     width: 60,
                     child: Text(
                       '${'set_label'.tr} ${set.setNumber}',
-                      style: const TextStyle(color: AppColors.textLightGrey, fontSize: 13),
+                      style: TextStyle(color: AppColors.textLightGrey, fontSize: 13.rf(context)),
                     ),
                   ),
                   Text(
                     '${set.reps} ${'reps_label'.tr}',
-                    style: const TextStyle(
-                        color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: AppColors.textWhite,
+                        fontSize: 14.rf(context),
+                        fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     '× ${set.weight.toStringAsFixed(set.weight % 1 == 0 ? 0 : 1)} ${set.weightUnit}',
-                    style: const TextStyle(
-                        color: AppColors.textWhite, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: AppColors.textWhite,
+                        fontSize: 14.rf(context),
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -254,7 +248,7 @@ class _MuscleChip extends StatelessWidget {
         label,
         style: TextStyle(
           color: isPrimary ? AppColors.primary : AppColors.textLightGrey,
-          fontSize: 12,
+          fontSize: 12.rf(context),
           fontWeight: isPrimary ? FontWeight.w700 : FontWeight.w500,
         ),
       ),
@@ -269,13 +263,8 @@ class _InstructionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+    return AppCard(
+      borderRadius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -290,7 +279,7 @@ class _InstructionsCard extends StatelessWidget {
                     height: 22,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.darkCard,
+                      color: AppColors.darkCardElevated,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -302,13 +291,13 @@ class _InstructionsCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       instructions[i],
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textLightGrey,
-                        fontSize: 13,
+                        fontSize: 13.rf(context),
                         height: 1.4,
                       ),
                     ),
@@ -325,16 +314,11 @@ class _InstructionsCard extends StatelessWidget {
 class _EmptyHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+    return AppCard(
+      borderRadius: 20,
       child: Text(
         'no_history_yet'.tr,
-        style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }

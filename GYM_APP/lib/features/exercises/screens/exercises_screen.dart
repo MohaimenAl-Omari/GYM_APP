@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/localization/locale_controller.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/exercises/models/muscle_group.dart';
 import 'package:gym_app/features/exercises/screens/muscle_group_exercises_screen.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/empty_state.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
+import 'package:gym_app/shared/widgets/skeleton_loader.dart';
 
 /// Top of the exercise library: pick a muscle group, then browse its
 /// exercises. Read-only — exercises themselves are admin-managed, per the
@@ -42,18 +47,15 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 8),
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  24.rs(context), 12.rs(context), 24.rs(context), 8.rs(context)),
               child: Row(
                 children: [
                   _BackButton(onTap: () => Navigator.of(context).pop()),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Text(
                     'home_exercises'.tr,
-                    style: const TextStyle(
-                      color: AppColors.textWhite,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ],
               ),
@@ -67,48 +69,67 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                   future: _future,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState != ConnectionState.done) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
+                      return GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsetsDirectional.fromSTEB(
+                            24.rs(context), 8.rs(context), 24.rs(context), 32.rs(context)),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 1.15,
+                        ),
+                        itemCount: 6,
+                        itemBuilder: (context, index) => const SkeletonBox(borderRadius: 20),
                       );
                     }
                     if (snapshot.hasError) {
-                      return _ErrorState(onRetry: _reload);
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          AppEmptyState(
+                            icon: Icons.error_outline_rounded,
+                            message: 'generic_error'.tr,
+                            actionLabel: 'retry'.tr,
+                            onAction: _reload,
+                          ),
+                        ],
+                      );
                     }
                     final groups = snapshot.data ?? const [];
                     if (groups.isEmpty) {
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 80),
-                            child: Center(
-                              child: Text(
-                                'exercises_empty'.tr,
-                                style: const TextStyle(color: AppColors.textGrey),
-                              ),
-                            ),
+                          AppEmptyState(
+                            icon: Icons.fitness_center_rounded,
+                            message: 'exercises_empty'.tr,
                           ),
                         ],
                       );
                     }
                     return GridView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 32),
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                          24.rs(context), 8.rs(context), 24.rs(context), 32.rs(context)),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        mainAxisSpacing: 14,
-                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
                         childAspectRatio: 1.15,
                       ),
                       itemCount: groups.length,
                       itemBuilder: (context, index) {
                         final group = groups[index];
-                        return _MuscleGroupCard(
-                          group: group,
-                          isArabic: isArabic,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => MuscleGroupExercisesScreen(muscleGroup: group),
+                        return FadeSlideIn(
+                          delay: Duration(milliseconds: (60 * index).clamp(0, 400)),
+                          child: _MuscleGroupCard(
+                            group: group,
+                            isArabic: isArabic,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => MuscleGroupExercisesScreen(muscleGroup: group),
+                              ),
                             ),
                           ),
                         );
@@ -138,13 +159,16 @@ class _MuscleGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final radius = BorderRadius.circular(20);
+    return AnimatedTap(
       onTap: onTap,
+      borderRadius: radius,
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.darkSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.darkBorder),
+          borderRadius: radius,
+          border: Border.all(color: AppColors.darkBorderSubtle),
+          boxShadow: AppColors.softShadow,
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
@@ -173,9 +197,9 @@ class _MuscleGroupCard extends StatelessWidget {
                 ),
                 child: Text(
                   group.localizedName(isArabic),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textWhite,
-                    fontSize: 15,
+                    fontSize: 15.rf(context),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -206,46 +230,20 @@ class _BackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final radius = BorderRadius.circular(16);
+    return AnimatedTap(
       onTap: onTap,
+      borderRadius: radius,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           color: AppColors.darkCard,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: radius,
           border: Border.all(color: AppColors.darkBorder),
         ),
         child: const Icon(Icons.arrow_back_rounded, color: AppColors.textGrey, size: 19),
       ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.onRetry});
-
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 80),
-          child: Column(
-            children: [
-              Text('generic_error'.tr, style: const TextStyle(color: AppColors.textGrey)),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: onRetry,
-                child: Text('retry'.tr, style: const TextStyle(color: AppColors.primary)),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

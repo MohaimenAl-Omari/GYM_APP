@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'date', 'notes'])]
+#[Fillable(['user_id', 'date', 'notes', 'duration_seconds'])]
 class WorkoutSession extends Model
 {
     use HasFactory;

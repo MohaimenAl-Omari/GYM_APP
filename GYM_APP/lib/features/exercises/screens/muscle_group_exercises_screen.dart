@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:gym_app/core/localization/locale_controller.dart';
 import 'package:gym_app/core/theme/app_colors.dart';
+import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/exercises/models/exercise.dart';
 import 'package:gym_app/features/exercises/models/muscle_group.dart';
 import 'package:gym_app/features/exercises/screens/exercise_detail_screen.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
+import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/empty_state.dart';
+import 'package:gym_app/shared/widgets/fade_slide_in.dart';
+import 'package:gym_app/shared/widgets/skeleton_loader.dart';
 
 class MuscleGroupExercisesScreen extends StatefulWidget {
   const MuscleGroupExercisesScreen({super.key, required this.muscleGroup});
@@ -47,39 +53,38 @@ class _MuscleGroupExercisesScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 8),
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  24.rs(context), 12.rs(context), 24.rs(context), 8.rs(context)),
               child: Row(
                 children: [
-                  GestureDetector(
+                  AnimatedTap(
                     onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(16),
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
                         color: AppColors.darkCard,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.darkBorder),
                       ),
                       child: const Icon(Icons.arrow_back_rounded,
                           color: AppColors.textGrey, size: 19),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       widget.muscleGroup.localizedName(isArabic),
-                      style: const TextStyle(
-                        color: AppColors.textWhite,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
                   ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 8),
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  24.rs(context), 8.rs(context), 24.rs(context), 8.rs(context)),
               child: TextField(
                 controller: _searchController,
                 onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
@@ -91,12 +96,16 @@ class _MuscleGroupExercisesScreenState
                   filled: true,
                   fillColor: AppColors.darkSurface,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(color: AppColors.darkBorder),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(color: AppColors.darkBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                   ),
                 ),
               ),
@@ -106,14 +115,18 @@ class _MuscleGroupExercisesScreenState
                 future: _future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                    return ListView.separated(
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                          24.rs(context), 8.rs(context), 24.rs(context), 32.rs(context)),
+                      itemCount: 6,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (_, __) => const SkeletonCard(height: 72, margin: EdgeInsets.zero),
                     );
                   }
                   if (snapshot.hasError) {
-                    return Center(
-                      child: Text('generic_error'.tr,
-                          style: const TextStyle(color: AppColors.textGrey)),
+                    return AppEmptyState(
+                      icon: Icons.error_outline_rounded,
+                      message: 'generic_error'.tr,
                     );
                   }
                   final all = snapshot.data ?? const [];
@@ -126,24 +139,28 @@ class _MuscleGroupExercisesScreenState
                           .toList();
 
                   if (exercises.isEmpty) {
-                    return Center(
-                      child: Text('exercises_empty'.tr,
-                          style: const TextStyle(color: AppColors.textGrey)),
+                    return AppEmptyState(
+                      icon: Icons.search_off_rounded,
+                      message: 'exercises_empty'.tr,
                     );
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsetsDirectional.fromSTEB(24, 8, 24, 32),
+                    padding: EdgeInsetsDirectional.fromSTEB(
+                        24.rs(context), 8.rs(context), 24.rs(context), 32.rs(context)),
                     itemCount: exercises.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final exercise = exercises[index];
-                      return _ExerciseRow(
-                        exercise: exercise,
-                        isArabic: isArabic,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ExerciseDetailScreen(exercise: exercise),
+                      return FadeSlideIn(
+                        delay: Duration(milliseconds: (60 * index).clamp(0, 400)),
+                        child: _ExerciseRow(
+                          exercise: exercise,
+                          isArabic: isArabic,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ExerciseDetailScreen(exercise: exercise),
+                            ),
                           ),
                         ),
                       );
@@ -172,43 +189,33 @@ class _ExerciseRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.darkSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.darkBorder),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: exercise.mediaUrl != null
-                  ? Image.network(
-                      exercise.mediaUrl!,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
-                    )
-                  : _placeholder(),
+      padding: const EdgeInsets.all(12),
+      borderRadius: 16,
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: exercise.mediaUrl != null
+                ? Image.network(
+                    exercise.mediaUrl!,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _placeholder(),
+                  )
+                : _placeholder(),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              exercise.localizedName(isArabic),
+              style: Theme.of(context).textTheme.titleSmall,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                exercise.localizedName(isArabic),
-                style: const TextStyle(
-                  color: AppColors.textWhite,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textGrey),
-          ],
-        ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textGrey),
+        ],
       ),
     );
   }
