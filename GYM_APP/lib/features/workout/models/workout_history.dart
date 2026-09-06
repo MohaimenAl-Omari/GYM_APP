@@ -1,4 +1,4 @@
-import '../../../core/constant/const.dart';
+import '../../../core/utils/media_url.dart';
 
 /// A muscle group tag as returned inside a history session summary —
 /// intentionally lighter than the full `MuscleGroup` model (no `media`),
@@ -123,15 +123,9 @@ class HistoryExercise {
 
   String localizedName(bool isArabic) => isArabic ? nameAr : nameEn;
 
-  String? get _mediaUrl {
-    if (media == null || media!.isEmpty) return null;
-    return '$storageBaseUrl/$media';
-  }
+  String? get _mediaUrl => resolveMediaUrl(media);
 
-  String? get _resolvedGifUrl {
-    if (gifUrl == null || gifUrl!.isEmpty) return null;
-    return '$storageBaseUrl/$gifUrl';
-  }
+  String? get _resolvedGifUrl => resolveMediaUrl(gifUrl);
 
   /// Same fallback chain as `Exercise.demoUrl`: animated gif if present,
   /// otherwise the static media image.

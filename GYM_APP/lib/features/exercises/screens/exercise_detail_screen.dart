@@ -8,6 +8,7 @@ import 'package:gym_app/features/exercises/models/exercise_last_performance.dart
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/shared/widgets/animated_tap.dart';
 import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/cached_remote_image.dart';
 import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 import 'package:gym_app/shared/widgets/skeleton_loader.dart';
 
@@ -67,18 +68,12 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               FadeSlideIn(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: exercise.demoUrl != null
-                      ? Image.network(
-                          exercise.demoUrl!,
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
-                          // Image.network plays animated GIFs natively, so a
-                          // gifUrl demo loops here just like a static photo
-                          // would render.
-                          errorBuilder: (_, __, ___) => _placeholder(),
-                        )
-                      : _placeholder(),
+                  child: CachedRemoteImage(
+                    url: exercise.demoUrl,
+                    width: double.infinity,
+                    height: 200,
+                    iconSize: 40,
+                  ),
                 ),
               ),
               SizedBox(height: 20.rs(context)),
@@ -132,15 +127,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      width: double.infinity,
-      height: 200,
-      color: AppColors.darkSurface,
-      child: const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 40),
     );
   }
 }

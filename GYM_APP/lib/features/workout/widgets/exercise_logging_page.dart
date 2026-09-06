@@ -10,6 +10,7 @@ import 'package:gym_app/features/workout/models/session_exercise.dart';
 import 'package:gym_app/features/workout/services/workout_service.dart';
 import 'package:gym_app/features/workout/widgets/stepper_field.dart';
 import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/shared/widgets/cached_remote_image.dart';
 import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 import 'package:gym_app/core/theme/responsive.dart';
 
@@ -280,6 +281,46 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
     });
   }
 
+  /// Shows the exercise's demo image/GIF full-size in a dialog over the
+  /// current page — deliberately not a route push, so the user is still
+  /// exactly where they were in the workout when they dismiss it (tap
+  /// outside, or the close button).
+  void _showFullDemo(BuildContext context) {
+    final url = widget.exercise.demoUrl;
+    if (url == null) return;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          alignment: AlignmentDirectional.topEnd,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: CachedRemoteImage(
+                url: url,
+                width: double.infinity,
+                fit: BoxFit.contain,
+                iconSize: 48,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: _RowIconButton(
+                icon: Icons.close_rounded,
+                color: AppColors.textWhite,
+                onTap: () => Navigator.of(dialogContext).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isArabic = Get.find<LocaleController>().isArabic;
@@ -299,17 +340,45 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: widget.exercise.demoUrl != null
-                    ? Image.network(
-                        widget.exercise.demoUrl!,
+              GestureDetector(
+                // Full demo is already shown inline right here, but it's
+                // small — tapping opens it large without leaving the
+                // workout (a dialog over this same page, not a route
+                // push), for anyone who wants a closer look at the
+                // movement mid-set.
+                onTap: widget.exercise.demoUrl == null
+                    ? null
+                    : () => _showFullDemo(context),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: CachedRemoteImage(
+                        url: widget.exercise.demoUrl,
                         width: double.infinity,
                         height: 180,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                      )
-                    : _imagePlaceholder(),
+                        iconSize: 40,
+                      ),
+                    ),
+                    if (widget.exercise.demoUrl != null)
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.55),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.fullscreen_rounded,
+                            color: AppColors.textWhite,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               SizedBox(height: 16.rs(context)),
               Text(
@@ -418,15 +487,6 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _imagePlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: 180,
-      color: AppColors.darkSurface,
-      child: const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 40),
     );
   }
 }

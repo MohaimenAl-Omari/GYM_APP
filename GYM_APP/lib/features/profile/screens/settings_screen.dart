@@ -206,6 +206,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Text(
+                      'exercise_media_credit'.tr,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
                 ],
               ),
             );

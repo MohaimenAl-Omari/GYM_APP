@@ -10,6 +10,7 @@ import 'package:gym_app/features/workout/services/workout_service.dart';
 import 'package:gym_app/shared/widgets/animated_tap.dart';
 import 'package:gym_app/shared/widgets/app_card.dart';
 import 'package:gym_app/shared/widgets/app_notification.dart';
+import 'package:gym_app/shared/widgets/cached_remote_image.dart';
 import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 
 /// Full exercise/set breakdown for one past session, opened from a
@@ -503,15 +504,12 @@ class _ExerciseCard extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: exercise.demoUrl != null
-                    ? Image.network(
-                        exercise.demoUrl!,
-                        width: 48,
-                        height: 48,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _thumbnailPlaceholder(),
-                      )
-                    : _thumbnailPlaceholder(),
+                child: CachedRemoteImage(
+                  url: exercise.demoUrl,
+                  width: 48,
+                  height: 48,
+                  iconSize: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -566,15 +564,6 @@ class _ExerciseCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _thumbnailPlaceholder() {
-    return Container(
-      width: 48,
-      height: 48,
-      color: AppColors.darkCard,
-      child: const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 20),
     );
   }
 }

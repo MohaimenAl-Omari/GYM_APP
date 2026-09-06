@@ -1,4 +1,4 @@
-import '../../../core/constant/const.dart';
+import '../../../core/utils/media_url.dart';
 
 class Exercise {
   const Exercise({
@@ -38,19 +38,12 @@ class Exercise {
   /// Step-by-step "how to" instructions, shown as a numbered list.
   final List<String> instructions;
 
-  String? get mediaUrl {
-    if (media == null || media!.isEmpty) return null;
-    return '$storageBaseUrl/$media';
-  }
+  /// `media` can be either a path on this app's own storage or a full
+  /// external URL pasted in via the admin panel — [resolveMediaUrl]
+  /// detects which and builds the right thing either way.
+  String? get mediaUrl => resolveMediaUrl(media);
 
-  String? get _gifUrl {
-    if (gifUrl == null || gifUrl!.isEmpty) return null;
-    // Backend stores this as a relative storage path
-    // ("exercises/bench-press.gif"), same as media — it needs the same
-    // storageBaseUrl prefix or Image.network gets an invalid URL and
-    // silently fails to load.
-    return '$storageBaseUrl/$gifUrl';
-  }
+  String? get _gifUrl => resolveMediaUrl(gifUrl);
 
   /// The best available demo visual: animated [gifUrl] if present,
   /// otherwise the static [mediaUrl].

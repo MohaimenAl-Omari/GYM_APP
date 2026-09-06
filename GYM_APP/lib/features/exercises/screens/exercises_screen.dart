@@ -7,6 +7,7 @@ import 'package:gym_app/features/exercises/models/muscle_group.dart';
 import 'package:gym_app/features/exercises/screens/muscle_group_exercises_screen.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/shared/widgets/animated_tap.dart';
+import 'package:gym_app/shared/widgets/cached_remote_image.dart';
 import 'package:gym_app/shared/widgets/empty_state.dart';
 import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 import 'package:gym_app/shared/widgets/skeleton_loader.dart';
@@ -174,14 +175,7 @@ class _MuscleGroupCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (group.mediaUrl != null)
-              Image.network(
-                group.mediaUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholderIcon(),
-              )
-            else
-              _placeholderIcon(),
+            CachedRemoteImage(url: group.mediaUrl, iconSize: 36),
             Positioned(
               left: 0,
               right: 0,
@@ -207,17 +201,6 @@ class _MuscleGroupCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _placeholderIcon() {
-    return Container(
-      color: AppColors.darkCard,
-      child: const Icon(
-        Icons.fitness_center_rounded,
-        color: AppColors.primary,
-        size: 36,
       ),
     );
   }

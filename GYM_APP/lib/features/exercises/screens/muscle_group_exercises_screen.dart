@@ -9,6 +9,7 @@ import 'package:gym_app/features/exercises/screens/exercise_detail_screen.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/shared/widgets/animated_tap.dart';
 import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/cached_remote_image.dart';
 import 'package:gym_app/shared/widgets/empty_state.dart';
 import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 import 'package:gym_app/shared/widgets/skeleton_loader.dart';
@@ -197,15 +198,16 @@ class _ExerciseRow extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: exercise.mediaUrl != null
-                ? Image.network(
-                    exercise.mediaUrl!,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _placeholder(),
-                  )
-                : _placeholder(),
+            // demoUrl (gif-first, falls back to the static image) — same
+            // visual the detail screen leads with, so the list preview
+            // isn't a static photo for an exercise that actually has a
+            // looping GIF one tap away.
+            child: CachedRemoteImage(
+              url: exercise.demoUrl,
+              width: 48,
+              height: 48,
+              iconSize: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -217,15 +219,6 @@ class _ExerciseRow extends StatelessWidget {
           const Icon(Icons.chevron_right_rounded, color: AppColors.textGrey),
         ],
       ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      width: 48,
-      height: 48,
-      color: AppColors.darkCard,
-      child: const Icon(Icons.fitness_center_rounded, color: AppColors.primary, size: 20),
     );
   }
 }

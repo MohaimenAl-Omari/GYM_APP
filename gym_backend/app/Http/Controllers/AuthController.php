@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
-use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Google\Client;
@@ -16,46 +15,6 @@ use Firebase\JWT\JWK;
 
 class AuthController extends Controller
 {
-    public function googleLogin(Request $request)
-    {
-        $googleUser = Socialite::driver('google')->stateless()->userFromToken($request->token);
-        $user = User::updateOrCreate(
-            [
-                'email' => $googleUser->email
-            ],
-            [
-                'name' => $googleUser->name,
-                'google_id' => $googleUser->id,
-                'avatar' => $googleUser->avatar
-            ]
-        );
-        $token = $user->createToken('mobile-app')->plainTextToken;
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ]);
-    }
-
-    public function appleLogin(Request $request)
-    {
-        $googleUser = Socialite::driver('google')->stateless()->userFromToken($request->token);
-        $user = User::updateOrCreate(
-            [
-                'email' => $googleUser->email
-            ],
-            [
-                'name' => $googleUser->name,
-                'google_id' => $googleUser->id,
-                'avatar' => $googleUser->avatar
-            ]
-        );
-        $token = $user->createToken('mobile-app')->plainTextToken;
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ]);
-    }
-
     public function signUp(Request $request)
     {
         $validator = Validator::make($request->all(), [

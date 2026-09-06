@@ -17,14 +17,34 @@ use Illuminate\Support\Str;
  * separately since every entry in it is already covered above (Bench
  * Press = Flat Barbell Bench Press, Squat = Back Squat, etc).
  *
- * `gif_url` is NOT a real, working URL — nobody has licensed exercise
- * GIFs to embed here. It's set to a predictable path
- * (`exercises/{slug}.gif`) so that once real GIF files exist, dropping
- * them into storage/app/public/exercises/ under the matching slug makes
- * them show up automatically. Until then, `demoUrl` on the Flutter side
- * falls back to `media` (nullable too) and then a placeholder icon — so
- * running this seeder as-is doesn't break the exercise pages. Real media
- * can also be uploaded per-exercise from the admin panel any time.
+ * `gif_url` is NOT a real, working URL by default — it's set to a
+ * predictable path (`exercises/{slug}.gif`) so that once real GIF files
+ * exist, dropping them into storage/app/public/exercises/ under the
+ * matching slug makes them show up automatically. Until then, `demoUrl`
+ * on the Flutter side falls back to `media` (nullable too) and then a
+ * placeholder icon — so running this seeder as-is doesn't break the
+ * exercise pages.
+ *
+ * Ways to attach real media after seeding, roughly in the order worth
+ * trying:
+ *   1. `php artisan exercises:fetch-from-repdb` — backfills real `media`
+ *      (static image) values from RepDB's free dataset. No API key, no
+ *      quota — just a public GitHub download. Recommended first pass; see
+ *      app/Console/Commands/ImportExerciseImagesFromRepDB.php for match
+ *      rate notes and why it deliberately leaves some exercises unmatched
+ *      rather than risking the wrong photo.
+ *   2. `php artisan exercises:fetch-from-wger` — same idea against wger's
+ *      public database, for whatever #1 couldn't confidently match. No key
+ *      either, but images are third-party-contributed (CC BY-SA) rather
+ *      than RepDB's own commissioned illustrations.
+ *   3. `php artisan exercises:fetch-gifs` — backfills real gif_url values
+ *      (animated, not static) from the ExerciseDB API (needs
+ *      EXERCISEDB_RAPIDAPI_KEY in .env and has a daily quota on the free
+ *      tier; see app/Console/Commands/FetchExerciseGifs.php). A GIF here
+ *      always wins over a static image from #1/#2 — see Exercise::demoUrl.
+ *   4. Admin panel → Exercises → edit → upload an image/GIF file per
+ *      exercise (stored on this server), or paste an external URL you
+ *      already have the rights to link to directly.
  */
 class ExerciseSeeder extends Seeder
 {

@@ -1,4 +1,3 @@
-@php use Illuminate\Support\Facades\Storage; @endphp
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-gray-900">Exercises</h1>
@@ -41,8 +40,13 @@
                 @forelse ($exercises as $exercise)
                     <tr wire:key="ex-{{ $exercise->id }}">
                         <td class="px-4 py-3">
-                            @if ($exercise->media)
-                                <img src="{{ Storage::url($exercise->media) }}" class="h-10 w-10 rounded object-cover" alt="">
+                            @if ($exercise->demo_url)
+                                <div class="relative h-10 w-10">
+                                    <img src="{{ $exercise->demo_url }}" class="h-10 w-10 rounded object-cover" alt="">
+                                    @if ($exercise->gif_url)
+                                        <span class="absolute -bottom-1 -right-1 rounded bg-gray-900 px-1 text-[9px] font-semibold leading-4 text-white">GIF</span>
+                                    @endif
+                                </div>
                             @else
                                 <div class="h-10 w-10 rounded bg-gray-100"></div>
                             @endif
@@ -114,18 +118,55 @@
                         <textarea wire:model="description_ar" dir="rtl" rows="3" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></textarea>
                     </div>
 
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-gray-700">Image / Video</label>
-                        <input type="file" wire:model="media" accept="image/*,video/mp4" class="w-full text-sm">
-                        <div wire:loading wire:target="media" class="mt-1 text-xs text-gray-400">Uploading&hellip;</div>
-                        @error('media') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-gray-700">Static Image</label>
+                            <input type="file" wire:model="media" accept="image/jpeg,image/png,image/webp" class="w-full text-sm">
+                            <div wire:loading wire:target="media" class="mt-1 text-xs text-gray-400">Uploading&hellip;</div>
+                            @error('media') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
 
-                        @if ($media)
-                            <img src="{{ $media->temporaryUrl() }}" class="mt-2 h-16 w-16 rounded object-cover">
-                        @elseif ($existingMedia)
-                            <img src="{{ Storage::url($existingMedia) }}" class="mt-2 h-16 w-16 rounded object-cover">
-                        @endif
+                            <input
+                                type="url"
+                                wire:model.blur="mediaUrlInput"
+                                placeholder="...or paste an external image URL"
+                                class="mt-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs"
+                            >
+                            @error('mediaUrlInput') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+
+                            @if ($media)
+                                <img src="{{ $media->temporaryUrl() }}" class="mt-2 h-16 w-16 rounded object-cover">
+                            @elseif ($existingMediaPreviewUrl)
+                                <img src="{{ $existingMediaPreviewUrl }}" class="mt-2 h-16 w-16 rounded object-cover">
+                            @endif
+                        </div>
+
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-gray-700">Animated GIF <span class="font-normal text-gray-400">(preferred)</span></label>
+                            <input type="file" wire:model="gif" accept="image/gif" class="w-full text-sm">
+                            <div wire:loading wire:target="gif" class="mt-1 text-xs text-gray-400">Uploading&hellip;</div>
+                            @error('gif') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+
+                            <input
+                                type="url"
+                                wire:model.blur="gifUrlInput"
+                                placeholder="...or paste an external GIF URL"
+                                class="mt-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs"
+                            >
+                            @error('gifUrlInput') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+
+                            @if ($gif)
+                                <img src="{{ $gif->temporaryUrl() }}" class="mt-2 h-16 w-16 rounded object-cover">
+                            @elseif ($existingGifPreviewUrl)
+                                <img src="{{ $existingGifPreviewUrl }}" class="mt-2 h-16 w-16 rounded object-cover">
+                            @endif
+                        </div>
                     </div>
+                    <p class="text-xs text-gray-400">
+                        Uploading a file stores it on this server. Pasting a URL instead links directly to that
+                        address — only do that for media you actually have the rights to link to (see the
+                        licensing notes you already have for this). When both an image and a GIF are set, the
+                        app shows the GIF.
+                    </p>
 
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" wire:click="closeModal" class="rounded-md px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
