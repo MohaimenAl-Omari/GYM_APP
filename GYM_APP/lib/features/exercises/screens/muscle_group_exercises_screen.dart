@@ -5,6 +5,7 @@ import 'package:gym_app/core/theme/app_colors.dart';
 import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/exercises/models/exercise.dart';
 import 'package:gym_app/features/exercises/models/muscle_group.dart';
+import 'package:gym_app/features/exercises/screens/add_edit_exercise_screen.dart';
 import 'package:gym_app/features/exercises/screens/exercise_detail_screen.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/shared/widgets/animated_tap.dart';
@@ -43,12 +44,41 @@ class _MuscleGroupExercisesScreenState
     super.dispose();
   }
 
+  void _reload() {
+    setState(() {
+      _future = _service.fetchExercisesForMuscleGroup(widget.muscleGroup.id);
+    });
+  }
+
+  Future<void> _openAddExercise() async {
+    final created = await Navigator.of(context).push<Exercise>(
+      MaterialPageRoute(
+        builder: (_) => AddEditExerciseScreen(initialMuscleGroup: widget.muscleGroup),
+      ),
+    );
+    if (created != null) _reload();
+  }
+
+  Future<void> _openDetail(Exercise exercise) async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ExerciseDetailScreen(exercise: exercise)),
+    );
+    // ExerciseDetailScreen pops `true` after a successful edit or delete
+    // of a custom exercise — refresh so this list reflects it immediately.
+    if (result == true) _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isArabic = Get.find<LocaleController>().isArabic;
 
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openAddExercise,
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add_rounded, color: AppColors.textWhite),
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,7 +148,7 @@ class _MuscleGroupExercisesScreenState
                   if (snapshot.connectionState != ConnectionState.done) {
                     return ListView.separated(
                       padding: EdgeInsetsDirectional.fromSTEB(
-                          24.rs(context), 8.rs(context), 24.rs(context), 32.rs(context)),
+                          24.rs(context), 8.rs(context), 24.rs(context), 90.rs(context)),
                       itemCount: 6,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (_, __) => const SkeletonCard(height: 72, margin: EdgeInsets.zero),
@@ -148,7 +178,7 @@ class _MuscleGroupExercisesScreenState
 
                   return ListView.separated(
                     padding: EdgeInsetsDirectional.fromSTEB(
-                        24.rs(context), 8.rs(context), 24.rs(context), 32.rs(context)),
+                        24.rs(context), 8.rs(context), 24.rs(context), 90.rs(context)),
                     itemCount: exercises.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
@@ -158,11 +188,7 @@ class _MuscleGroupExercisesScreenState
                         child: _ExerciseRow(
                           exercise: exercise,
                           isArabic: isArabic,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ExerciseDetailScreen(exercise: exercise),
-                            ),
-                          ),
+                          onTap: () => _openDetail(exercise),
                         ),
                       );
                     },

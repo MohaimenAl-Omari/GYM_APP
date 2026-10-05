@@ -26,7 +26,15 @@ Route::prefix('api_v1')->group(function () {
         Route::get('/muscle-groups', [MuscleGroupController::class, 'index']);
         Route::get('/muscle-groups/{muscleGroup}/exercises', [MuscleGroupController::class, 'exercises']);
 
+        Route::get('/my-exercises', [ExerciseController::class, 'mine']);
+        Route::post('/exercises', [ExerciseController::class, 'store']);
         Route::get('/exercises/{exercise}', [ExerciseController::class, 'show']);
+        // PUT here accepts a POST with a spoofed `_method=PUT` field too —
+        // needed because PHP doesn't populate $_FILES for a real multipart
+        // PUT request, so the app sends photo updates that way (standard
+        // Laravel workaround, see the framework's own file-upload docs).
+        Route::put('/exercises/{exercise}', [ExerciseController::class, 'update']);
+        Route::delete('/exercises/{exercise}', [ExerciseController::class, 'destroy']);
         Route::get('/exercises/{exercise}/last-performance', [ExerciseController::class, 'lastPerformance']);
         Route::get('/exercises/{exercise}/progress', [ExerciseController::class, 'progress']);
 

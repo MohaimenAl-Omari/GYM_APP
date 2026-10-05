@@ -7,6 +7,10 @@ class AppTranslations extends Translations {
       };
 
   static const Map<String, String> _en = {
+    'set_waiting_sync': 'Set saved on this device. Retry to sync before logging the next set for this exercise.',
+    'retry_set_sync': 'Retry save',
+    'set_recovery_error': 'Could not read saved sets. Retry before continuing.',
+    'finish_pending_sets': 'Some sets still need syncing. Open their exercises and retry saving before finishing.',
     // Shared
     'password': 'Password',
     'login': 'Login',
@@ -92,6 +96,29 @@ class AppTranslations extends Translations {
     'set_label': 'Set',
     'reps_label': 'reps',
     'generic_error': 'Something went wrong. Please try again.',
+
+    // User-created exercises
+    'my_exercises': 'My Exercises',
+    'my_exercises_subtitle': 'Exercises you added yourself',
+    'my_exercises_empty': "You haven't added any exercises yet.",
+    'add_exercise': 'Add Exercise',
+    'edit_exercise': 'Edit Exercise',
+    'custom_badge': 'Custom',
+    'exercise_name': 'Exercise Name',
+    'exercise_name_hint': 'e.g. Cable Machine #4 Row',
+    'muscle_group_label': 'Muscle Group',
+    'description_optional': 'Description (optional)',
+    'description_hint': 'How to do it, what it targets...',
+    'photo_optional': 'Photo (optional)',
+    'take_photo': 'Take Photo',
+    'choose_from_gallery': 'Choose from Gallery',
+    'remove_photo': 'Remove Photo',
+    'please_enter_exercise_name': 'Please enter a name for the exercise.',
+    'please_choose_muscle_group': 'Please choose a muscle group.',
+    'exercise_saved': 'Exercise saved.',
+    'delete_exercise_title': 'Delete this exercise?',
+    'delete_exercise_message': "This can't be undone.",
+    'exercise_deleted': 'Exercise deleted.',
     'retry': 'Retry',
 
     // History tab
@@ -180,6 +207,10 @@ class AppTranslations extends Translations {
   };
 
   static const Map<String, String> _ar = {
+    'set_waiting_sync': 'تم حفظ المجموعة على هذا الجهاز. أعد المحاولة للمزامنة قبل تسجيل المجموعة التالية لهذا التمرين.',
+    'retry_set_sync': 'إعادة محاولة الحفظ',
+    'set_recovery_error': 'تعذرت قراءة المجموعات المحفوظة. أعد المحاولة قبل المتابعة.',
+    'finish_pending_sets': 'توجد مجموعات بانتظار المزامنة. افتح تمارينها وأعد محاولة الحفظ قبل إنهاء التمرين.',
     // Shared
     'password': 'كلمة المرور',
     'login': 'تسجيل الدخول',
@@ -264,6 +295,29 @@ class AppTranslations extends Translations {
     'set_label': 'مجموعة',
     'reps_label': 'تكرار',
     'generic_error': 'حدث خطأ ما. حاول مرة أخرى.',
+
+    // User-created exercises
+    'my_exercises': 'تماريني',
+    'my_exercises_subtitle': 'التمارين يلي ضفتها بنفسك',
+    'my_exercises_empty': 'ما ضفت أي تمرين لسا.',
+    'add_exercise': 'إضافة تمرين',
+    'edit_exercise': 'تعديل التمرين',
+    'custom_badge': 'شخصي',
+    'exercise_name': 'اسم التمرين',
+    'exercise_name_hint': 'مثلاً: تجديف جهاز الكيبل #4',
+    'muscle_group_label': 'المجموعة العضلية',
+    'description_optional': 'الوصف (اختياري)',
+    'description_hint': 'كيف تسويه، وشو بيستهدف...',
+    'photo_optional': 'صورة (اختياري)',
+    'take_photo': 'التقاط صورة',
+    'choose_from_gallery': 'اختيار من المعرض',
+    'remove_photo': 'إزالة الصورة',
+    'please_enter_exercise_name': 'الرجاء إدخال اسم التمرين.',
+    'please_choose_muscle_group': 'الرجاء اختيار المجموعة العضلية.',
+    'exercise_saved': 'تم حفظ التمرين.',
+    'delete_exercise_title': 'حذف هذا التمرين؟',
+    'delete_exercise_message': 'ما بتقدر ترجع فيها بعدين.',
+    'exercise_deleted': 'تم حذف التمرين.',
 
     // History tab
     'history_title': 'سجل التمارين',

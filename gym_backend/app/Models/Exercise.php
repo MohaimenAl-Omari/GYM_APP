@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'muscle_group_id',
+    'user_id',
     'name_en',
     'name_ar',
     'description_en',
@@ -25,6 +27,30 @@ class Exercise extends Model
     public function muscleGroup(): BelongsTo
     {
         return $this->belongsTo(MuscleGroup::class);
+    }
+
+    /**
+     * Null = an official, admin-curated exercise (every exercise seeded
+     * so far). Non-null = a user created this one themselves, for their
+     * own use only — see ExerciseController::store()/update()/destroy()
+     * and the ownership checks in MuscleGroupController::exercises() and
+     * WorkoutSessionController's exercise_id validation.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Every SessionExercise row that ever logged this exercise, across
+     * every user's workout sessions — used by ExerciseController::destroy()
+     * to refuse deleting an exercise (own or, in principle, official) that
+     * already has real workout history attached to it, since
+     * session_exercises.exercise_id has a restrictive (non-cascading) FK.
+     */
+    public function sessionExercises(): HasMany
+    {
+        return $this->hasMany(SessionExercise::class);
     }
 
     /**
@@ -43,14 +69,14 @@ class Exercise extends Model
     protected function mediaUrl(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->resolveUrl($this->media),
+            get: fn () => $this->resolveUrl($this->media),
         );
     }
 
     protected function demoUrl(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->resolveUrl($this->gif_url) ?? $this->resolveUrl($this->media),
+            get: fn () => $this->resolveUrl($this->gif_url) ?? $this->resolveUrl($this->media),
         );
     }
 

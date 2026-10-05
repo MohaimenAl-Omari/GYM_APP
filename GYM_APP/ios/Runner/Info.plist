@@ -66,5 +66,11 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- Needed by image_picker (add-your-own-exercise photo) — iOS shows
+	     these strings in its own permission prompt the first time. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Used to take a photo when you add your own exercise.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used to pick a photo from your library when you add your own exercise.</string>
 </dict>
 </plist>

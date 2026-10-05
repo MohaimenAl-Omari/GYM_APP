@@ -5,6 +5,7 @@ import 'package:gym_app/core/theme/app_colors.dart';
 import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/exercises/models/muscle_group.dart';
 import 'package:gym_app/features/exercises/screens/muscle_group_exercises_screen.dart';
+import 'package:gym_app/features/exercises/screens/my_exercises_screen.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/shared/widgets/animated_tap.dart';
 import 'package:gym_app/shared/widgets/cached_remote_image.dart';
@@ -13,8 +14,10 @@ import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 import 'package:gym_app/shared/widgets/skeleton_loader.dart';
 
 /// Top of the exercise library: pick a muscle group, then browse its
-/// exercises. Read-only — exercises themselves are admin-managed, per the
-/// project's v1 scope.
+/// exercises. Alongside the official (admin-curated) catalog, users can add
+/// their own private exercises — either inline within a muscle group
+/// (MuscleGroupExercisesScreen's FAB) or from the dedicated list reachable
+/// via the header button here (MyExercisesScreen).
 class ExercisesScreen extends StatefulWidget {
   const ExercisesScreen({super.key});
 
@@ -54,9 +57,17 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                 children: [
                   _BackButton(onTap: () => Navigator.of(context).pop()),
                   const SizedBox(width: 12),
-                  Text(
-                    'home_exercises'.tr,
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  Expanded(
+                    child: Text(
+                      'home_exercises'.tr,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _MyExercisesButton(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const MyExercisesScreen()),
+                    ),
                   ),
                 ],
               ),
@@ -201,6 +212,31 @@ class _MuscleGroupCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MyExercisesButton extends StatelessWidget {
+  const _MyExercisesButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(16);
+    return AnimatedTap(
+      onTap: onTap,
+      borderRadius: radius,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppColors.darkCard,
+          borderRadius: radius,
+          border: Border.all(color: AppColors.darkBorder),
+        ),
+        child: const Icon(Icons.list_alt_rounded, color: AppColors.textGrey, size: 20),
       ),
     );
   }

@@ -169,15 +169,12 @@ class ExerciseSeeder extends Seeder
 
         foreach ($data as $groupNameEn => $exercises) {
             $muscleGroup = MuscleGroup::where('name_en', $groupNameEn)->first();
-
             if (!$muscleGroup) {
                 $this->command?->warn("Skipping \"{$groupNameEn}\" — run MuscleGroupSeeder first.");
                 continue;
             }
-
             foreach ($exercises as [$nameEn, $nameAr]) {
                 $slug = Str::slug($nameEn);
-
                 Exercise::firstOrCreate(
                     [
                         'muscle_group_id' => $muscleGroup->id,

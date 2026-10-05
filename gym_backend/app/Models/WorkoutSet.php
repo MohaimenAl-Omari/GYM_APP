@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `Set` model Laravel's naming convention would infer, purely so it isn't
  * confused with a generic "set" — hence the explicit $table override.
  */
-#[Fillable(['session_exercise_id', 'set_number', 'reps', 'weight', 'weight_unit', 'rest_time'])]
+#[Fillable(['session_exercise_id', 'set_number', 'reps', 'weight', 'weight_unit', 'rest_time', 'client_request_id'])]
 class WorkoutSet extends Model
 {
     protected $table = 'sets';

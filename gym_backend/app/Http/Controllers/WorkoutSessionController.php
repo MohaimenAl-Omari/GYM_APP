@@ -117,7 +117,7 @@ class WorkoutSessionController extends Controller
             'muscle_group_ids' => ['required', 'array', 'min:1'],
             'muscle_group_ids.*' => ['integer', 'exists:muscle_groups,id'],
             'exercise_ids' => ['required', 'array', 'min:1'],
-            'exercise_ids.*' => ['integer', 'exists:exercises,id'],
+            'exercise_ids.*' => ['integer', $this->visibleExerciseRule($request)],
         ]);
 
         $session = DB::transaction(function () use ($request, $validated) {
@@ -159,7 +159,7 @@ class WorkoutSessionController extends Controller
         $this->authorizeSession($request, $workoutSession);
 
         $validated = $request->validate([
-            'exercise_id' => ['required', 'integer', 'exists:exercises,id'],
+            'exercise_id' => ['required', 'integer', $this->visibleExerciseRule($request)],
         ]);
 
         $nextOrder = ($workoutSession->sessionExercises()->max('order') ?? 0) + 1;
@@ -182,6 +182,7 @@ class WorkoutSessionController extends Controller
         $this->authorizeSession($request, $workoutSession);
 
         $validated = $request->validate([
+            'client_request_id' => ['nullable', 'string', 'regex:/^[a-f0-9]{32}$/'],
             'session_exercise_id' => [
                 'required',
                 'integer',
@@ -194,7 +195,15 @@ class WorkoutSessionController extends Controller
             'rest_time' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $set = WorkoutSet::create($validated);
+        // The database unique index resolves concurrent retries as well as
+        // requests whose success response never reached the phone.
+        $requestId = $validated['client_request_id'] ?? null;
+        $set = $requestId === null
+            ? WorkoutSet::create($validated)
+            : WorkoutSet::firstOrCreate([
+                'session_exercise_id' => $validated['session_exercise_id'],
+                'client_request_id' => $requestId,
+            ], $validated);
 
         return response()->json($set, 201);
     }
@@ -327,6 +336,24 @@ class WorkoutSessionController extends Controller
             $set->sessionExercise?->session_id !== $workoutSession->id,
             404,
             'Set not found in this session.'
+        );
+    }
+
+    /**
+     * An exercise_id is only valid to log against if it's an official
+     * exercise (user_id null) or the current user's own — otherwise a
+     * user could add another user's private custom exercise to their own
+     * session just by guessing/incrementing an id. Same visibility rule
+     * as ExerciseController/MuscleGroupController, expressed as a
+     * validation rule so `exists:exercises,id` alone never has to do
+     * double duty as an authorization check.
+     */
+    private function visibleExerciseRule(Request $request)
+    {
+        return Rule::exists('exercises', 'id')->where(
+            fn ($query) => $query->where(
+                fn ($q) => $q->whereNull('user_id')->orWhere('user_id', $request->user()->id)
+            )
         );
     }
 }

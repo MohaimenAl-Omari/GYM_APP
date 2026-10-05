@@ -6,6 +6,7 @@ class Exercise {
     required this.muscleGroupId,
     required this.nameEn,
     required this.nameAr,
+    this.userId,
     this.descriptionEn,
     this.descriptionAr,
     this.media,
@@ -22,6 +23,18 @@ class Exercise {
   final String? descriptionEn;
   final String? descriptionAr;
   final String? media;
+
+  /// Null = an official, admin-curated exercise. Non-null = the current
+  /// user created this one themselves — the API only ever returns a
+  /// user's OWN custom exercises to them, never anyone else's, so this
+  /// being non-null is by itself enough to know "I own this, I can edit
+  /// or delete it." See [isCustom].
+  final int? userId;
+
+  /// Whether this is a user-created exercise (as opposed to one from the
+  /// official library) — drives the "Custom" badge and the edit/delete
+  /// actions on the detail screen.
+  bool get isCustom => userId != null;
 
   /// Looping demo animation (GIF) for this exercise, e.g. from an exercise
   /// content provider like ExerciseDB. Optional — falls back to [media]
@@ -60,6 +73,7 @@ class Exercise {
       muscleGroupId: json['muscle_group_id'] as int,
       nameEn: json['name_en']?.toString() ?? '',
       nameAr: json['name_ar']?.toString() ?? '',
+      userId: json['user_id'] as int?,
       descriptionEn: json['description_en']?.toString(),
       descriptionAr: json['description_ar']?.toString(),
       media: json['media']?.toString(),

@@ -3,6 +3,7 @@
 class LoggedSet {
   LoggedSet({
     this.id,
+    this.clientRequestId,
     required this.sessionExerciseId,
     required this.setNumber,
     required this.reps,
@@ -13,6 +14,7 @@ class LoggedSet {
 
   /// Null until the backend confirms the set was saved.
   int? id;
+  String? clientRequestId;
   final int sessionExerciseId;
   final int setNumber;
   int reps;
@@ -21,17 +23,19 @@ class LoggedSet {
   int? restTime;
 
   Map<String, dynamic> toJson() => {
-        'session_exercise_id': sessionExerciseId,
-        'set_number': setNumber,
-        'reps': reps,
-        'weight': weight,
-        'weight_unit': weightUnit,
-        if (restTime != null) 'rest_time': restTime,
-      };
+    if (clientRequestId != null) 'client_request_id': clientRequestId,
+    'session_exercise_id': sessionExerciseId,
+    'set_number': setNumber,
+    'reps': reps,
+    'weight': weight,
+    'weight_unit': weightUnit,
+    if (restTime != null) 'rest_time': restTime,
+  };
 
   factory LoggedSet.fromJson(Map<String, dynamic> json) {
     return LoggedSet(
       id: json['id'] as int?,
+      clientRequestId: json['client_request_id'] as String?,
       sessionExerciseId: json['session_exercise_id'] as int,
       setNumber: json['set_number'] as int,
       reps: json['reps'] as int,

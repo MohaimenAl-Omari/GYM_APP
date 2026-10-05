@@ -25,9 +25,11 @@ class ExerciseLoggingPage extends StatefulWidget {
     required this.sessionExercise,
     required this.exercise,
     required this.onSetLogged,
+    required this.onSavingChanged,
     this.initialSets = const [],
   });
 
+  final void Function(bool saving) onSavingChanged;
   final int sessionId;
   final SessionExercise sessionExercise;
   final Exercise exercise;
@@ -42,13 +44,17 @@ class ExerciseLoggingPage extends StatefulWidget {
   /// Called with (sessionExerciseId, totalConfirmedSets) right after a set
   /// is saved — the parent uses this both to start the rest timer and to
   /// keep its own progress map for the session overview panel in sync.
-  final void Function(int sessionExerciseId, int totalConfirmedSets) onSetLogged;
+  final void Function(int sessionExerciseId, int totalConfirmedSets)
+  onSetLogged;
 
   @override
   State<ExerciseLoggingPage> createState() => _ExerciseLoggingPageState();
 }
 
-class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
+class _ExerciseLoggingPageState extends State<ExerciseLoggingPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final ExerciseService _exerciseService = ExerciseService();
   final WorkoutService _workoutService = WorkoutService();
 
@@ -59,6 +65,43 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
   double _draftWeight = 20;
   String _draftWeightUnit = 'kg';
   bool _saving = false;
+  bool _loadingPending = true;
+  bool _recoveryError = false;
+  LoggedSet? _pendingSet;
+
+  int get _nextSetNumber =>
+      _confirmedSets.fold<int>(
+        0,
+        (largest, set) => set.setNumber > largest ? set.setNumber : largest,
+      ) +
+      1;
+
+  Future<void> _restorePending() async {
+    try {
+      final pending = await _workoutService.pendingSets.read(
+        widget.sessionId,
+        widget.sessionExercise.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingSet = pending;
+        _loadingPending = false;
+        _recoveryError = false;
+        if (pending != null) {
+          _draftReps = pending.reps;
+          _draftWeight = pending.weight;
+          _draftWeightUnit = pending.weightUnit;
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadingPending = false;
+          _recoveryError = true;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -74,9 +117,17 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
       _draftWeight = last.weight;
       _draftWeightUnit = last.weightUnit;
     }
-    _lastPerformanceFuture = _exerciseService.fetchLastPerformance(widget.exercise.id);
+    _restorePending();
+    _lastPerformanceFuture = _exerciseService
+        .fetchLastPerformance(widget.exercise.id)
+        .catchError((Object _) => ExerciseLastPerformance.empty);
     _lastPerformanceFuture.then((performance) {
-      if (!mounted || performance.sets.isEmpty) return;
+      if (!mounted ||
+          performance.sets.isEmpty ||
+          _pendingSet != null ||
+          _saving) {
+        return;
+      }
       if (_confirmedSets.isNotEmpty) {
         // Already resumed with real sets from this session — prefer
         // continuing that progression over overwriting it with an
@@ -94,8 +145,10 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
   }
 
   void _prefillNextDraft(ExerciseLastPerformance performance) {
-    final nextSetNumber = _confirmedSets.length + 1;
-    final matching = performance.sets.where((s) => s.setNumber == nextSetNumber);
+    final nextSetNumber = _nextSetNumber;
+    final matching = performance.sets.where(
+      (s) => s.setNumber == nextSetNumber,
+    );
     if (matching.isNotEmpty) {
       _draftReps = matching.first.reps;
       _draftWeight = matching.first.weight;
@@ -106,35 +159,48 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
   }
 
   Future<void> _confirmSet(ExerciseLastPerformance performance) async {
-    if (_saving) return;
+    if (_saving || _loadingPending || _recoveryError) return;
     setState(() => _saving = true);
+    widget.onSavingChanged(true);
 
-    final set = LoggedSet(
-      sessionExerciseId: widget.sessionExercise.id,
-      setNumber: _confirmedSets.length + 1,
-      reps: _draftReps,
-      weight: _draftWeight,
-      weightUnit: _draftWeightUnit,
-      restTime: 90,
-    );
+    final set =
+        _pendingSet ??
+        LoggedSet(
+          sessionExerciseId: widget.sessionExercise.id,
+          setNumber: _nextSetNumber,
+          reps: _draftReps,
+          weight: _draftWeight,
+          weightUnit: _draftWeightUnit,
+          restTime: 90,
+        );
 
     try {
       final saved = await _workoutService.logSet(widget.sessionId, set);
       if (!mounted) return;
       setState(() {
+        // A lost response can leave this set already present after resume.
+        _confirmedSets.removeWhere((set) => set.id == saved.id);
         _confirmedSets.add(saved);
+        _confirmedSets.sort((a, b) => a.setNumber.compareTo(b.setNumber));
+        _pendingSet = null;
         _prefillNextDraft(performance);
       });
       widget.onSetLogged(widget.sessionExercise.id, _confirmedSets.length);
     } catch (e) {
-      // Logged so the real cause shows in the device console instead of
-      // only ever surfacing as an unhelpful generic banner.
-      debugPrint('ConfirmSet failed: $e');
+      // Read back the durable attempt; a storage failure must never be
+      // presented as a successful local save.
+      await _restorePending();
       if (mounted) {
-        AppNotification.showError(context, 'generic_error'.tr);
+        AppNotification.showError(
+          context,
+          (_pendingSet != null ? 'set_waiting_sync' : 'generic_error').tr,
+        );
       }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+        widget.onSavingChanged(false);
+      }
     }
   }
 
@@ -142,7 +208,12 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
   /// on any confirmed set (editing doesn't disturb ordering).
   Future<void> _editConfirmedSet(int index) async {
     final set = _confirmedSets[index];
-    if (set.id == null) return;
+    if (set.id == null ||
+        _saving ||
+        _loadingPending ||
+        _recoveryError ||
+        _pendingSet != null)
+      return;
     final repsController = TextEditingController(text: set.reps.toString());
     final weightController = TextEditingController(text: set.weight.toString());
 
@@ -163,9 +234,13 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
             const SizedBox(height: 12),
             TextField(
               controller: weightController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(color: AppColors.textWhite),
-              decoration: InputDecoration(labelText: '${'weight'.tr} (${set.weightUnit})'),
+              decoration: InputDecoration(
+                labelText: '${'weight'.tr} (${set.weightUnit})',
+              ),
             ),
           ],
         ),
@@ -215,7 +290,12 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
     if (_confirmedSets.isEmpty) return;
     final index = _confirmedSets.length - 1;
     final set = _confirmedSets[index];
-    if (set.id == null) return;
+    if (set.id == null ||
+        _saving ||
+        _loadingPending ||
+        _recoveryError ||
+        _pendingSet != null)
+      return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -229,7 +309,10 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('delete'.tr, style: const TextStyle(color: AppColors.error)),
+            child: Text(
+              'delete'.tr,
+              style: const TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -323,6 +406,7 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isArabic = Get.find<LocaleController>().isArabic;
 
     return FutureBuilder<ExerciseLastPerformance>(
@@ -336,7 +420,11 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
           // looks today, but it means padding stays correct if this ever
           // becomes asymmetric — see gym-app-mobile-ui-ux skill.
           padding: EdgeInsetsDirectional.fromSTEB(
-              24.rs(context), 8.rs(context), 24.rs(context), 24.rs(context)),
+            24.rs(context),
+            8.rs(context),
+            24.rs(context),
+            24.rs(context),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -389,24 +477,36 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
                 const SizedBox(height: 8),
                 Text(
                   '${'last_time'.tr}: ${performance.sets.map((s) => '${s.reps}×${s.weight.toStringAsFixed(s.weight % 1 == 0 ? 0 : 1)}${s.weightUnit}').join(', ')}',
-                  style: TextStyle(color: AppColors.textGrey, fontSize: 12.rf(context)),
+                  style: TextStyle(
+                    color: AppColors.textGrey,
+                    fontSize: 12.rf(context),
+                  ),
                 ),
               ],
               SizedBox(height: 20.rs(context)),
               ..._confirmedSets.asMap().entries.map(
-                    (entry) => FadeSlideIn(
-                      delay: Duration(milliseconds: 60 * entry.key),
-                      child: _ConfirmedSetRow(
-                        set: entry.value,
-                        onEdit: () => _editConfirmedSet(entry.key),
-                        // Only the last row gets a delete affordance — see
-                        // _deleteLastConfirmedSet for why.
-                        onDelete: entry.key == _confirmedSets.length - 1
-                            ? _deleteLastConfirmedSet
-                            : null,
-                      ),
-                    ),
+                (entry) => FadeSlideIn(
+                  delay: Duration(milliseconds: 60 * entry.key),
+                  child: _ConfirmedSetRow(
+                    set: entry.value,
+                    onEdit: () => _editConfirmedSet(entry.key),
+                    // Only the last row gets a delete affordance — see
+                    // _deleteLastConfirmedSet for why.
+                    onDelete: entry.key == _confirmedSets.length - 1
+                        ? _deleteLastConfirmedSet
+                        : null,
                   ),
+                ),
+              ),
+              if (_pendingSet != null || _recoveryError)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    (_recoveryError ? 'set_recovery_error' : 'set_waiting_sync')
+                        .tr,
+                    style: const TextStyle(color: AppColors.textLightGrey),
+                  ),
+                ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -419,7 +519,7 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
                 child: Column(
                   children: [
                     Text(
-                      '${'set_label'.tr} ${_confirmedSets.length + 1}',
+                      '${'set_label'.tr} ${_pendingSet?.setNumber ?? _nextSetNumber}',
                       style: TextStyle(
                         color: AppColors.textLightGrey,
                         fontSize: 12.rf(context),
@@ -427,34 +527,48 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        StepperField(
-                          label: 'reps_label'.tr,
-                          value: '$_draftReps',
-                          onDecrement: () => setState(() {
-                            if (_draftReps > 1) _draftReps -= 1;
-                          }),
-                          onIncrement: () => setState(() => _draftReps += 1),
-                          onTapValue: () => _editValue(isReps: true),
-                        ),
-                        StepperField(
-                          label: '${'weight'.tr} ($_draftWeightUnit)',
-                          value: _draftWeight.toStringAsFixed(_draftWeight % 1 == 0 ? 0 : 1),
-                          onDecrement: () => setState(() {
-                            if (_draftWeight >= 2.5) _draftWeight -= 2.5;
-                          }),
-                          onIncrement: () => setState(() => _draftWeight += 2.5),
-                          onTapValue: () => _editValue(isReps: false),
-                        ),
-                      ],
+                    AbsorbPointer(
+                      absorbing:
+                          _saving ||
+                          _loadingPending ||
+                          _pendingSet != null ||
+                          _recoveryError,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          StepperField(
+                            label: 'reps_label'.tr,
+                            value: '$_draftReps',
+                            onDecrement: () => setState(() {
+                              if (_draftReps > 1) _draftReps -= 1;
+                            }),
+                            onIncrement: () => setState(() => _draftReps += 1),
+                            onTapValue: () => _editValue(isReps: true),
+                          ),
+                          StepperField(
+                            label: '${'weight'.tr} ($_draftWeightUnit)',
+                            value: _draftWeight.toStringAsFixed(
+                              _draftWeight % 1 == 0 ? 0 : 1,
+                            ),
+                            onDecrement: () => setState(() {
+                              if (_draftWeight >= 2.5) _draftWeight -= 2.5;
+                            }),
+                            onIncrement: () =>
+                                setState(() => _draftWeight += 2.5),
+                            onTapValue: () => _editValue(isReps: false),
+                          ),
+                        ],
+                      ),
                     ),
                     SizedBox(height: 16.rs(context)),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: _saving ? null : () => _confirmSet(performance),
+                        onPressed: _saving || _loadingPending
+                            ? null
+                            : _recoveryError
+                            ? _restorePending
+                            : () => _confirmSet(performance),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -467,11 +581,20 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
                                 height: 16,
                                 width: 16,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: AppColors.textWhite),
+                                  strokeWidth: 2,
+                                  color: AppColors.textWhite,
+                                ),
                               )
-                            : const Icon(Icons.check_rounded, color: AppColors.textWhite, size: 18),
+                            : const Icon(
+                                Icons.check_rounded,
+                                color: AppColors.textWhite,
+                                size: 18,
+                              ),
                         label: Text(
-                          'confirm_set'.tr,
+                          (_pendingSet != null || _recoveryError
+                                  ? 'retry_set_sync'
+                                  : 'confirm_set')
+                              .tr,
                           style: TextStyle(
                             color: AppColors.textWhite,
                             fontSize: 14.rf(context),
@@ -492,7 +615,11 @@ class _ExerciseLoggingPageState extends State<ExerciseLoggingPage> {
 }
 
 class _ConfirmedSetRow extends StatelessWidget {
-  const _ConfirmedSetRow({required this.set, required this.onEdit, this.onDelete});
+  const _ConfirmedSetRow({
+    required this.set,
+    required this.onEdit,
+    this.onDelete,
+  });
 
   final LoggedSet set;
   final VoidCallback onEdit;
@@ -512,26 +639,47 @@ class _ConfirmedSetRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
-          const SizedBox(width: 10),
-          Text(
-            '${'set_label'.tr} ${set.setNumber}',
-            style: const TextStyle(color: AppColors.textLightGrey, fontSize: 13),
+          const Icon(
+            Icons.check_circle_rounded,
+            color: AppColors.success,
+            size: 18,
           ),
-          const Spacer(),
-          Text(
-            '${set.reps} ${'reps_label'.tr}  ×  ${set.weight.toStringAsFixed(set.weight % 1 == 0 ? 0 : 1)} ${set.weightUnit}',
-            style: const TextStyle(
-              color: AppColors.textWhite,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              fontFeatures: [FontFeature.tabularFigures()],
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${'set_label'.tr} ${set.setNumber}',
+                  style: const TextStyle(
+                    color: AppColors.textLightGrey,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  '${set.reps} ${'reps_label'.tr}  ×  ${set.weight.toStringAsFixed(set.weight % 1 == 0 ? 0 : 1)} ${set.weightUnit}',
+                  style: const TextStyle(
+                    color: AppColors.textWhite,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 4),
-          _RowIconButton(icon: Icons.edit_outlined, color: AppColors.textGrey, onTap: onEdit),
+          _RowIconButton(
+            icon: Icons.edit_outlined,
+            color: AppColors.textGrey,
+            onTap: onEdit,
+          ),
           if (onDelete != null)
-            _RowIconButton(icon: Icons.delete_outline_rounded, color: AppColors.error, onTap: onDelete!),
+            _RowIconButton(
+              icon: Icons.delete_outline_rounded,
+              color: AppColors.error,
+              onTap: onDelete!,
+            ),
         ],
       ),
     );
@@ -543,7 +691,11 @@ class _ConfirmedSetRow extends StatelessWidget {
 /// while the actual hit area still meets the minimum comfortable size for
 /// a screen used one-handed, often mid-workout.
 class _RowIconButton extends StatelessWidget {
-  const _RowIconButton({required this.icon, required this.color, required this.onTap});
+  const _RowIconButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   final IconData icon;
   final Color color;

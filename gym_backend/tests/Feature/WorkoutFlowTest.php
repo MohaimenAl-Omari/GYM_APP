@@ -26,6 +26,8 @@ class WorkoutFlowTest extends TestCase
 
     private function authHeader(User $user): array
     {
+        // Each simulated account switch needs a fresh request guard.
+        $this->app['auth']->forgetGuards();
         $token = $user->createToken('test')->plainTextToken;
         return ['Authorization' => "Bearer $token"];
     }
@@ -37,6 +39,39 @@ class WorkoutFlowTest extends TestCase
             'name_en' => 'Bench Press',
             'name_ar' => 'ضغط بنش',
         ]);
+    }
+
+    public function test_retry_returns_original_set_without_duplicating_or_overwriting_it(): void
+    {
+        $user = User::factory()->create();
+        $group = MuscleGroup::create(['name_en' => 'Chest', 'name_ar' => 'صدر']);
+        $exercise = $this->makeExercise($group);
+        $headers = $this->authHeader($user);
+        $session = $this->withHeaders($headers)->postJson('/api/api_v1/workout-sessions', [
+            'muscle_group_ids' => [$group->id],
+            'exercise_ids' => [$exercise->id],
+        ])->assertCreated();
+        $url = '/api/api_v1/workout-sessions/'.$session->json('id').'/sets';
+        $payload = [
+            'session_exercise_id' => $session->json('session_exercises.0.id'),
+            'client_request_id' => str_repeat('a', 32),
+            'set_number' => 1, 'reps' => 10, 'weight' => 60, 'weight_unit' => 'kg',
+        ];
+        $first = $this->withHeaders($headers)->postJson($url, $payload)->assertCreated();
+        $this->withHeaders($headers)->postJson($url, [...$payload, 'reps' => 99])
+            ->assertCreated()->assertJsonPath('id', $first->json('id'))
+            ->assertJsonPath('reps', 10);
+        $this->assertDatabaseCount('sets', 1);
+
+        // A retry ID never bypasses session ownership.
+        $this->withHeaders($this->authHeader(User::factory()->create()))
+            ->postJson($url, $payload)->assertForbidden();
+        $this->assertDatabaseCount('sets', 1);
+
+        $this->withHeaders($this->authHeader($user))->postJson($url, [
+            ...$payload, 'client_request_id' => str_repeat('b', 32), 'set_number' => 2,
+        ])->assertCreated();
+        $this->assertDatabaseCount('sets', 2);
     }
 
     public function test_full_workout_logging_flow(): void
@@ -86,7 +121,7 @@ class WorkoutFlowTest extends TestCase
             ->putJson("/api/api_v1/workout-sessions/{$sessionId}/finish");
         $finishResponse->assertStatus(200)
             ->assertJsonPath('total_sets', 1)
-            ->assertJsonPath('total_volume', 605.0);
+            ->assertJsonPath('total_volume', fn ($value) => is_numeric($value) && (float) $value === 605.0);
         $durationSeconds = $finishResponse->json('duration_seconds');
         $this->assertIsInt($durationSeconds);
         $this->assertGreaterThanOrEqual(0, $durationSeconds);

@@ -5,9 +5,11 @@ import 'package:gym_app/core/theme/app_colors.dart';
 import 'package:gym_app/core/theme/responsive.dart';
 import 'package:gym_app/features/exercises/models/exercise.dart';
 import 'package:gym_app/features/exercises/models/exercise_last_performance.dart';
+import 'package:gym_app/features/exercises/screens/add_edit_exercise_screen.dart';
 import 'package:gym_app/features/exercises/services/exercise_service.dart';
 import 'package:gym_app/shared/widgets/animated_tap.dart';
 import 'package:gym_app/shared/widgets/app_card.dart';
+import 'package:gym_app/shared/widgets/app_notification.dart';
 import 'package:gym_app/shared/widgets/cached_remote_image.dart';
 import 'package:gym_app/shared/widgets/fade_slide_in.dart';
 import 'package:gym_app/shared/widgets/skeleton_loader.dart';
@@ -24,17 +26,79 @@ class ExerciseDetailScreen extends StatefulWidget {
 class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   final ExerciseService _service = ExerciseService();
   late Future<ExerciseLastPerformance> _future;
+  late Exercise _exercise;
+
+  /// True once this exercise has actually been edited (not just viewed) —
+  /// tells the caller (My Exercises / a muscle group list) to refetch so
+  /// the change shows up there too, instead of unconditionally refetching
+  /// every time someone merely opens and closes a detail screen.
+  bool _changed = false;
+
+  bool _isDeleting = false;
 
   @override
   void initState() {
     super.initState();
-    _future = _service.fetchLastPerformance(widget.exercise.id);
+    _exercise = widget.exercise;
+    _future = _service.fetchLastPerformance(_exercise.id);
+  }
+
+  void _handleBack() => Navigator.of(context).pop(_changed);
+
+  Future<void> _handleEdit() async {
+    final updated = await Navigator.of(context).push<Exercise>(
+      MaterialPageRoute(
+        builder: (_) => AddEditExerciseScreen(exerciseToEdit: _exercise),
+      ),
+    );
+    if (updated == null) return;
+    setState(() {
+      _exercise = updated;
+      _changed = true;
+    });
+  }
+
+  Future<void> _handleDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        title: Text('delete_exercise_title'.tr,
+            style: const TextStyle(color: AppColors.textWhite)),
+        content: Text('delete_exercise_message'.tr,
+            style: const TextStyle(color: AppColors.textGrey)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('cancel'.tr),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('delete'.tr, style: const TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _isDeleting = true);
+    final error = await _service.deleteExercise(_exercise.id);
+    if (!mounted) return;
+
+    if (error != null) {
+      setState(() => _isDeleting = false);
+      AppNotification.showError(context, error);
+      return;
+    }
+
+    AppNotification.showSuccess(context, 'exercise_deleted'.tr);
+    Navigator.of(context).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
     final isArabic = Get.find<LocaleController>().isArabic;
-    final exercise = widget.exercise;
+    final exercise = _exercise;
 
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
@@ -48,7 +112,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               Row(
                 children: [
                   AnimatedTap(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: _handleBack,
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: 48,
@@ -62,6 +126,46 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                           color: AppColors.textGrey, size: 19),
                     ),
                   ),
+                  if (exercise.isCustom) ...[
+                    const Spacer(),
+                    AnimatedTap(
+                      onTap: _handleEdit,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.darkCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.darkBorder),
+                        ),
+                        child: const Icon(Icons.edit_outlined,
+                            color: AppColors.textGrey, size: 19),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    AnimatedTap(
+                      onTap: _isDeleting ? null : _handleDelete,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.darkCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.darkBorder),
+                        ),
+                        child: _isDeleting
+                            ? const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: AppColors.error),
+                              )
+                            : const Icon(Icons.delete_outline_rounded,
+                                color: AppColors.error, size: 19),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               SizedBox(height: 16.rs(context)),
@@ -77,9 +181,34 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
               ),
               SizedBox(height: 20.rs(context)),
-              Text(
-                exercise.localizedName(isArabic),
-                style: Theme.of(context).textTheme.headlineSmall,
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      exercise.localizedName(isArabic),
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  if (exercise.isCustom) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary),
+                      ),
+                      child: Text(
+                        'custom_badge'.tr,
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11.rf(context),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               if ((exercise.localizedDescription(isArabic) ?? '').isNotEmpty) ...[
                 const SizedBox(height: 8),

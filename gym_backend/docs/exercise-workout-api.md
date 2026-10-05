@@ -17,13 +17,16 @@ Returns all muscle groups.
 `media` is a relative storage path — the app builds the full URL as
 `{APP_URL}/storage/{media}` (same as the admin panel's `Storage::url()`).
 
-`GET /api_v1/muscle-groups/{id}/exercises`
-Exercises belonging to that muscle group.
+`GET /api_v1/muscle-groups/{id}/exercises` (auth required)
+Exercises belonging to that muscle group — every official (admin-curated)
+exercise, plus any the *current user* created themselves under this group
+(never another user's — see "User-created exercises" below).
 ```json
 [
   {
     "id": 10,
     "muscle_group_id": 1,
+    "user_id": null,
     "name_en": "Bench Press",
     "name_ar": "بنش برس",
     "description_en": "...",
@@ -32,9 +35,51 @@ Exercises belonging to that muscle group.
   }
 ]
 ```
+`user_id: null` = official exercise. A real `user_id` = one of the current
+user's own — the app treats that as the signal to show an edit/delete
+option and a "custom" badge (it will always equal the logged-in user's own
+id, since a user is never shown anyone else's).
 
 `GET /api_v1/exercises/{id}`
-Single exercise, same shape as above.
+Single exercise, same shape as above. 404s if it's a custom exercise
+belonging to someone else.
+
+## User-created exercises (auth required)
+
+Lets a user add their own exercise — kept deliberately simple: one `name`
+(stored into both `name_en`/`name_ar` — a personal exercise is usually a
+proper noun or note that doesn't need separate translations), an optional
+description, and an optional photo (no GIF — a user isn't going to have
+one). Private to the user who created it; nobody else, including the admin
+panel's exercise list, ever sees it.
+
+`GET /api_v1/my-exercises`
+Every exercise the current user created, across all muscle groups — powers
+the "My Exercises" screen. Same shape as the browse endpoints above.
+
+`POST /api_v1/exercises` — multipart form data
+```
+muscle_group_id   required, must be a real muscle group
+name              required, string
+description       optional, string
+photo             optional, image file (max 5MB)
+```
+Returns the created exercise, 201.
+
+`PUT /api_v1/exercises/{id}` — multipart form data, all fields optional
+```
+muscle_group_id, name, description, photo, remove_photo (bool)
+```
+403 if this isn't the current user's own exercise (including official
+ones — those aren't user-editable at all). Because PHP doesn't populate
+`$_FILES` on a real multipart PUT request, send this as a POST with a
+spoofed `_method=PUT` field in the form data when a photo is attached
+(standard Laravel convention) — the route accepts both.
+
+`DELETE /api_v1/exercises/{id}`
+403 if not the owner. 422 (not the equivalent of a generic 500) if the
+exercise has already been logged in a workout — same reasoning as
+everywhere else in this API: never silently break someone's history.
 
 `GET /api_v1/exercises/{id}/last-performance` (auth required)
 The current user's most recent completed set-log for this exercise, used to
@@ -171,3 +216,25 @@ doesn't send them.
 - No new migrations needed — this contract maps onto your existing
   `muscle_groups`, `exercises`, `workout_sessions`, `session_muscle_groups`,
   `session_exercises`, `sets` tables as-is.
+
+
+### Recoverable set saves (mobile client)
+
+`POST /workout-sessions/{id}/sets` accepts optional `client_request_id`
+(32 lowercase hexadecimal characters). The mobile client writes the complete
+attempt to secure local storage before sending it. Retries reuse that ID and
+payload. A unique index on `(session_exercise_id, client_request_id)` makes
+concurrent retries return the same set without duplicating it. Legacy clients
+without an ID retain their existing behavior. Session ownership is checked
+before resolving a retry.
+
+Run the new `2026_10_04_000000_add_client_request_id_to_sets` migration on the
+backend before releasing the updated mobile client.
+
+After an uncertain failure, the exercise displays a retry action and retains
+its attempted values after reopening the session. A validation rejection
+(422) clears the attempt so the user can correct it. Finishing is blocked on
+the client while local attempts are pending. Recovery after an app restart
+currently requires connectivity to reopen the server-backed session; this is
+not a full offline workout queue. Unconfirmed drafts and edits/deletions of
+previously saved sets are not queued.

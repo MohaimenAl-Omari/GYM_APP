@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Needed by image_picker (add-your-own-exercise photo) when the
+         user chooses "take a photo" instead of picking from the gallery.
+         Gallery picking itself needs no runtime permission on modern
+         Android (it goes through the system photo picker). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="gym_app"
         android:name="${applicationName}"

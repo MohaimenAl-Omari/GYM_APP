@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../services/pending_set_store.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -49,6 +50,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   Timer? _restTimer;
   int? _restSecondsRemaining;
   bool _finishing = false;
+  final Set<int> _savingExercises = {};
 
   // sessionExercise.id -> sets confirmed so far, kept in sync by each
   // ExerciseLoggingPage's onSetLogged callback. Feeds the overview panel
@@ -59,7 +61,8 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   void initState() {
     super.initState();
     widget.initialSetsBySessionExerciseId.forEach((sessionExerciseId, sets) {
-      if (sets.isNotEmpty) _setsLoggedByExercise[sessionExerciseId] = sets.length;
+      if (sets.isNotEmpty)
+        _setsLoggedByExercise[sessionExerciseId] = sets.length;
     });
   }
 
@@ -93,20 +96,28 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
   }
 
   Future<void> _finishWorkout() async {
-    if (_finishing) return;
+    if (_finishing || _savingExercises.isNotEmpty) return;
     setState(() => _finishing = true);
     try {
       final summary = await _workoutService.finishSession(widget.session.id);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => WorkoutSummaryScreen(summary: summary)),
+        MaterialPageRoute(
+          builder: (_) => WorkoutSummaryScreen(summary: summary),
+        ),
       );
     } catch (e) {
       // Logged so the real cause shows in the device console instead of
       // only ever surfacing as an unhelpful generic banner.
       debugPrint('FinishWorkout failed: $e');
       if (mounted) {
-        AppNotification.showError(context, 'generic_error'.tr);
+        AppNotification.showError(
+          context,
+          (e is PendingWorkoutSetsException
+                  ? 'finish_pending_sets'
+                  : 'generic_error')
+              .tr,
+        );
       }
     } finally {
       if (mounted) setState(() => _finishing = false);
@@ -135,7 +146,11 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
         return SafeArea(
           child: Padding(
             padding: EdgeInsetsDirectional.fromSTEB(
-                20.rs(context), 16.rs(context), 20.rs(context), 8.rs(context)),
+              20.rs(context),
+              16.rs(context),
+              20.rs(context),
+              8.rs(context),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,8 +171,10 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final sessionExercise = sessionExercises[index];
-                      final exercise = widget.exercisesById[sessionExercise.exerciseId];
-                      final setsLogged = _setsLoggedByExercise[sessionExercise.id] ?? 0;
+                      final exercise =
+                          widget.exercisesById[sessionExercise.exerciseId];
+                      final setsLogged =
+                          _setsLoggedByExercise[sessionExercise.id] ?? 0;
                       final isCurrent = index == _currentIndex;
 
                       return AnimatedTap(
@@ -167,12 +184,19 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
-                            color: isCurrent ? AppColors.primary.withOpacity(0.12) : AppColors.darkCard,
+                            color: isCurrent
+                                ? AppColors.primary.withOpacity(0.12)
+                                : AppColors.darkCard,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isCurrent ? AppColors.primary : Colors.transparent,
+                              color: isCurrent
+                                  ? AppColors.primary
+                                  : Colors.transparent,
                             ),
                           ),
                           child: Row(
@@ -181,7 +205,9 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                                 setsLogged > 0
                                     ? Icons.check_circle_rounded
                                     : Icons.circle_outlined,
-                                color: setsLogged > 0 ? AppColors.success : AppColors.textGrey,
+                                color: setsLogged > 0
+                                    ? AppColors.success
+                                    : AppColors.textGrey,
                                 size: 20,
                               ),
                               const SizedBox(width: 12),
@@ -199,7 +225,10 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                                 setsLogged == 0
                                     ? 'not_started'.tr
                                     : '$setsLogged ${'sets_logged_suffix'.tr}',
-                                style: TextStyle(color: AppColors.textGrey, fontSize: 12.rf(context)),
+                                style: TextStyle(
+                                  color: AppColors.textGrey,
+                                  fontSize: 12.rf(context),
+                                ),
                               ),
                             ],
                           ),
@@ -230,7 +259,10 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('leave'.tr, style: const TextStyle(color: AppColors.error)),
+            child: Text(
+              'leave'.tr,
+              style: const TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -256,12 +288,17 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
             children: [
               Padding(
                 padding: EdgeInsetsDirectional.fromSTEB(
-                    20.rs(context), 12.rs(context), 20.rs(context), 8.rs(context)),
+                  20.rs(context),
+                  12.rs(context),
+                  20.rs(context),
+                  8.rs(context),
+                ),
                 child: Row(
                   children: [
                     AnimatedTap(
                       onTap: () async {
-                        if (await _confirmLeave() && mounted) Navigator.of(context).pop();
+                        if (await _confirmLeave() && mounted)
+                          Navigator.of(context).pop();
                       },
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
@@ -273,7 +310,11 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: AppColors.darkBorder),
                         ),
-                        child: const Icon(Icons.close_rounded, color: AppColors.textGrey, size: 19),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.textGrey,
+                          size: 19,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -304,13 +345,17 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                             ),
                     ),
                     TextButton(
-                      onPressed: _finishing ? null : _finishWorkout,
+                      onPressed: _finishing || _savingExercises.isNotEmpty
+                          ? null
+                          : _finishWorkout,
                       child: _finishing
                           ? const SizedBox(
                               height: 16,
                               width: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: AppColors.primary),
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
                             )
                           : Text(
                               'finish_workout'.tr,
@@ -327,31 +372,53 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
               Expanded(
                 child: total == 0
                     ? Center(
-                        child: Text('exercises_empty'.tr,
-                            style: const TextStyle(color: AppColors.textGrey)),
+                        child: Text(
+                          'exercises_empty'.tr,
+                          style: const TextStyle(color: AppColors.textGrey),
+                        ),
                       )
                     : PageView.builder(
                         controller: _pageController,
                         itemCount: total,
-                        onPageChanged: (index) => setState(() => _currentIndex = index),
+                        onPageChanged: (index) =>
+                            setState(() => _currentIndex = index),
                         itemBuilder: (context, index) {
                           final sessionExercise = sessionExercises[index];
-                          final exercise = widget.exercisesById[sessionExercise.exerciseId];
+                          final exercise =
+                              widget.exercisesById[sessionExercise.exerciseId];
                           if (exercise == null) {
                             return const SizedBox.shrink();
                           }
-                          return ExerciseLoggingPage(
-                            sessionId: widget.session.id,
-                            sessionExercise: sessionExercise,
-                            exercise: exercise,
-                            initialSets:
-                                widget.initialSetsBySessionExerciseId[sessionExercise.id] ?? const [],
-                            onSetLogged: (sessionExerciseId, totalConfirmedSets) {
-                              setState(() {
-                                _setsLoggedByExercise[sessionExerciseId] = totalConfirmedSets;
-                              });
-                              _startRestTimer();
-                            },
+                          return AbsorbPointer(
+                            absorbing: _finishing,
+                            child: ExerciseLoggingPage(
+                              onSavingChanged: (saving) {
+                                if (!mounted) return;
+                                setState(() {
+                                  if (saving) {
+                                    _savingExercises.add(sessionExercise.id);
+                                  } else {
+                                    _savingExercises.remove(sessionExercise.id);
+                                  }
+                                });
+                              },
+                              sessionId: widget.session.id,
+                              sessionExercise: sessionExercise,
+                              exercise: exercise,
+                              initialSets:
+                                  widget
+                                      .initialSetsBySessionExerciseId[sessionExercise
+                                      .id] ??
+                                  const [],
+                              onSetLogged:
+                                  (sessionExerciseId, totalConfirmedSets) {
+                                    setState(() {
+                                      _setsLoggedByExercise[sessionExerciseId] =
+                                          totalConfirmedSets;
+                                    });
+                                    _startRestTimer();
+                                  },
+                            ),
                           );
                         },
                       ),
@@ -374,33 +441,41 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                         onSkip: _skipRest,
                       )
                     : (total > 1
-                        ? Padding(
-                            key: const ValueKey('nav-buttons'),
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                                20.rs(context), 4.rs(context), 20.rs(context), 16.rs(context)),
-                            child: Row(
-                              children: [
-                                _NavButton(
-                                  icon: Icons.chevron_left_rounded,
-                                  enabled: _currentIndex > 0,
-                                  onTap: () => _pageController.previousPage(
-                                    duration: const Duration(milliseconds: 250),
-                                    curve: Curves.easeOut,
+                          ? Padding(
+                              key: const ValueKey('nav-buttons'),
+                              padding: EdgeInsetsDirectional.fromSTEB(
+                                20.rs(context),
+                                4.rs(context),
+                                20.rs(context),
+                                16.rs(context),
+                              ),
+                              child: Row(
+                                children: [
+                                  _NavButton(
+                                    icon: Icons.chevron_left_rounded,
+                                    enabled: _currentIndex > 0,
+                                    onTap: () => _pageController.previousPage(
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      curve: Curves.easeOut,
+                                    ),
                                   ),
-                                ),
-                                const Spacer(),
-                                _NavButton(
-                                  icon: Icons.chevron_right_rounded,
-                                  enabled: _currentIndex < total - 1,
-                                  onTap: () => _pageController.nextPage(
-                                    duration: const Duration(milliseconds: 250),
-                                    curve: Curves.easeOut,
+                                  const Spacer(),
+                                  _NavButton(
+                                    icon: Icons.chevron_right_rounded,
+                                    enabled: _currentIndex < total - 1,
+                                    onTap: () => _pageController.nextPage(
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      curve: Curves.easeOut,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : const SizedBox.shrink(key: ValueKey('nav-empty'))),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('nav-empty'))),
               ),
             ],
           ),
@@ -411,7 +486,11 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
 }
 
 class _NavButton extends StatelessWidget {
-  const _NavButton({required this.icon, required this.enabled, required this.onTap});
+  const _NavButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
 
   final IconData icon;
   final bool enabled;
@@ -433,7 +512,9 @@ class _NavButton extends StatelessWidget {
         ),
         child: Icon(
           icon,
-          color: enabled ? AppColors.textWhite : AppColors.textGrey.withOpacity(0.3),
+          color: enabled
+              ? AppColors.textWhite
+              : AppColors.textGrey.withOpacity(0.3),
         ),
       ),
     );
